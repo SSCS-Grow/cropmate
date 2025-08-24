@@ -1,52 +1,82 @@
-'use client';
-import supabaseBrowser from '@/lib/supabaseBrowser';
-import { useEffect, useState } from 'react';
+'use client'
 
+import { useEffect, useState } from 'react'
+// Ensure the file exists at the correct path, or update the import path if needed
+import supabaseBrowser from '../../lib/supabaseBrowser'
 
-export default function Crops() {
-const supabase = supabaseBrowser();
-const [crops, setCrops] = useState<any[]>([]);
-const [adding, setAdding] = useState<string | null>(null);
+type Crop = {
+  id: string
+  name: string
+  scientific_name: string | null
+  description: string | null
+}
 
+export default function CropsPage() {
+  const supabase = supabaseBrowser()
+  const [crops, setCrops] = useState<Crop[]>([])
+  const [addingId, setAddingId] = useState<string | null>(null)
 
-useEffect(() => {
-(async () => {
-const { data } = await supabase.from('crops').select('*').order('name');
-setCrops(data || []);
-})();
-}, [supabase]);
+  useEffect(() => {
+    const run = async () => {
+      const { data, error } = await supabase
+        .from('crops')
+        .select('id, name, scientific_name, description')
+        .order('name')
+      if (!error && data) setCrops(data as Crop[])
+    }
+    run()
+  }, [supabase])
 
+  const addToGarden = async (cropId: string) => {
+    setAddingId(cropId)
+    const { data: session } = await supabase.auth.getSession()
+    const userId = session.session?.user.id
+    if (!userId) { setAddingId(null); return alert('Log ind først') }
 
-const addToGarden = async (cropId: string) => {
-setAdding(cropId);
-const { data: session } = await supabase.auth.getSession();
-const user = session.session?.user;
-if (!user) return;
-await supabase.from('user_crops').insert({ user_id: user.id, crop_id: cropId, planted_on: new Date().toISOString().slice(0,10) });
-setAdding(null);
-alert('Tilføjet til din have/mark');
-};
+    const planted_on = new Date().toISOString().slice(0, 10)
+    const { error: insErr } = await supabase
+      .from('user_crops')
+      .insert({ user_id: userId, crop_id: cropId, planted_on })
+    if (insErr) { setAddingId(null); return alert('Kunne ikke tilføje (tjek permissions)') }
 
+    const today = new Date()
+    const plusDays = (n: number) => {
+      const d = new Date(today); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10)
+    }
+    await supabase.from('tasks').insert([
+      { user_id: userId, crop_id: cropId, type: 'water',     due_date: plusDays(1),  notes: 'Let vanding efter udplantning' },
+      { user_id: userId, crop_id: cropId, type: 'fertilize', due_date: plusDays(14), notes: 'Let gødskning' },
+      { user_id: userId, crop_id: cropId, type: 'prune',     due_date: plusDays(21), notes: 'Tjek sideskud/beskæring' },
+      { user_id: userId, crop_id: cropId, type: 'other',     due_date: plusDays(30), notes: 'Tjek vækststatus' },
+    ])
 
-return (
-<div className="grid gap-4">
-<h2 className="text-xl font-semibold">Afgrødekatalog</h2>
-<ul className="grid gap-3">
-{crops.map((c) => (
-<li key={c.id} className="p-3 bg-white rounded-lg shadow">
-<div className="flex items-center justify-between">
-<div>
-<h3 className="font-medium">{c.name}</h3>
-<p className="text-sm opacity-70">{c.scientific_name}</p>
-</div>
-<button disabled={adding===c.id} onClick={() => addToGarden(c.id)} className="px-3 py-2 rounded bg-slate-900 text-white text-sm">
-{adding===c.id ? 'Tilføjer…' : 'Tilføj'}
-</button>
-</div>
-{c.description && <p className="text-sm mt-2 opacity-90">{c.description}</p>}
-</li>
-))}
-</ul>
-</div>
-);
+    setAddingId(null)
+    alert('Tilføjet og opgaver oprettet ✔️')
+  }
+
+  return (
+    <div className="grid gap-4">
+      <h2 className="text-xl font-semibold">Afgrødekatalog</h2>
+      <ul className="grid gap-3">
+        {crops.map((c) => (
+          <li key={c.id} className="p-3 bg-white rounded-lg shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium">{c.name}</h3>
+                {c.scientific_name && <p className="text-sm opacity-70">{c.scientific_name}</p>}
+              </div>
+              <button
+                disabled={addingId === c.id}
+                onClick={() => addToGarden(c.id)}
+                className="px-3 py-2 rounded bg-slate-900 text-white text-sm"
+              >
+                {addingId === c.id ? 'Tilføjer…' : 'Tilføj'}
+              </button>
+            </div>
+            {c.description && <p className="text-sm mt-2 opacity-90">{c.description}</p>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }

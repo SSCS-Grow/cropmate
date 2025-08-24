@@ -33,10 +33,15 @@ return (
 }
 
 
-return (
-<div className="grid gap-4">
-<p>Du er logget ind.</p>
-<Link className="underline" href="/dashboard">Gå til Dashboard</Link>
-</div>
-);
+ return (
+    <div className="grid gap-4">
+      <p>Du er logget ind.</p>
+      <nav className="flex gap-4 text-sm">
+        <Link className="underline" href="/dashboard">Gå til Dashboard</Link>
+        <Link className="underline" href="/crops">Katalog</Link>
+        <Link className="underline" href="/my">Min have</Link>
+        <Link className="underline" href="/settings">Indstillinger</Link>
+      </nav>
+    </div>
+  )
 }
