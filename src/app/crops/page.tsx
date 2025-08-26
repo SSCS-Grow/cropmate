@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-// Ensure the file exists at the correct path, or update the import path if needed
-import supabaseBrowser from '../../lib/supabaseBrowser'
+import supabaseBrowser from '@/lib/supabaseBrowser'
 
 type Crop = {
   id: string
@@ -39,19 +38,8 @@ export default function CropsPage() {
       .insert({ user_id: userId, crop_id: cropId, planted_on })
     if (insErr) { setAddingId(null); return alert('Kunne ikke tilføje (tjek permissions)') }
 
-    const today = new Date()
-    const plusDays = (n: number) => {
-      const d = new Date(today); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10)
-    }
-    await supabase.from('tasks').insert([
-      { user_id: userId, crop_id: cropId, type: 'water',     due_date: plusDays(1),  notes: 'Let vanding efter udplantning' },
-      { user_id: userId, crop_id: cropId, type: 'fertilize', due_date: plusDays(14), notes: 'Let gødskning' },
-      { user_id: userId, crop_id: cropId, type: 'prune',     due_date: plusDays(21), notes: 'Tjek sideskud/beskæring' },
-      { user_id: userId, crop_id: cropId, type: 'other',     due_date: plusDays(30), notes: 'Tjek vækststatus' },
-    ])
-
     setAddingId(null)
-    alert('Tilføjet og opgaver oprettet ✔️')
+    alert('Tilføjet ✔️')
   }
 
   return (

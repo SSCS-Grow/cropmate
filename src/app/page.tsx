@@ -2,38 +2,41 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-// Brug relativ import for at udelukke alias-issues (kan skifte tilbage senere)
-import supabaseBrowser from '../lib/supabaseBrowser'
+import supabaseBrowser from '@/lib/supabaseBrowser' // eller '../lib/supabaseBrowser' hvis du ikke har alias
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
-import type { Session, AuthChangeEvent } from '@supabase/supabase-js'
-
-// resten af din komponent...
-
+import type { Session } from '@supabase/supabase-js' // bruges i state-typen
 
 export default function Home() {
-const supabase = supabaseBrowser();
-const [session, setSession] = useState<any>(null);
+  const supabase = supabaseBrowser()
+  const [session, setSession] = useState<Session | null>(null)
 
+  useEffect(() => {
+    // Hent aktuel session
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
 
-useEffect(() => {
-supabase.auth.getSession().then(({ data }) => setSession(data.session));
-const { data: listener } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-return () => listener.subscription.unsubscribe();
-}, [supabase]);
+    // Lyt på login/logout – uden 'any' og uden AuthChangeEvent-import
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      (_event: unknown, newSession: Session | null) => {
+        setSession(newSession)
+      }
+    )
 
+    return () => {
+      sub.subscription.unsubscribe()
+    }
+  }, [supabase])
 
-if (!session) {
-return (
-<div className="grid gap-6">
-<p className="text-sm">Log ind eller opret konto for at komme i gang.</p>
-<Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={[]} />
-</div>
-);
-}
+  if (!session) {
+    return (
+      <div className="grid gap-6">
+        <p className="text-sm">Log ind eller opret konto for at komme i gang.</p>
+        <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={[]} />
+      </div>
+    )
+  }
 
-
- return (
+  return (
     <div className="grid gap-4">
       <p>Du er logget ind.</p>
       <nav className="flex gap-4 text-sm">

@@ -1,13 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-// Ensure the file exists at the correct path, or update the import path if necessary
-import supabaseBrowser from '../../lib/supabaseBrowser'
+import supabaseBrowser from '@/lib/supabaseBrowser'
 
 type MyRow = {
   id: string
   planted_on: string | null
   crops: { name: string } | null
+}
+
+type MyRowDB = {
+  id: string
+  planted_on: string | null
+  crops: { name: string }[] | { name: string } | null
 }
 
 export default function MyGardenPage() {
@@ -18,21 +23,26 @@ export default function MyGardenPage() {
     const run = async () => {
       const { data: session } = await supabase.auth.getSession()
       if (!session.session) return
+
       const { data, error } = await supabase
         .from('user_crops')
         .select('id, planted_on, crops(name)')
         .order('created_at', { ascending: false })
-      if (!error && data) {
-        setRows(
-          (data as any[]).map((row) => ({
-            id: row.id,
-            planted_on: row.planted_on,
-            crops: Array.isArray(row.crops) && row.crops.length > 0
-              ? { name: String(row.crops[0].name) }
-              : null,
-          }))
-        )
+
+      if (error || !data) {
+        setRows([])
+        return
       }
+
+      const normalized: MyRow[] = (data as MyRowDB[]).map((r) => ({
+        id: r.id,
+        planted_on: r.planted_on,
+        crops: Array.isArray(r.crops)
+          ? ((r.crops[0] as { name: string } | undefined) ?? null)
+          : (r.crops as { name: string } | null),
+      }))
+
+      setRows(normalized)
     }
     run()
   }, [supabase])

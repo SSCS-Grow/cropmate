@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import supabaseBrowser from '../../lib/supabaseBrowser'
+import supabaseBrowser from '@/lib/supabaseBrowser'
 
 type Task = { id: string; type: string; due_date: string; notes: string | null; status?: string }
 type Alert = { id: string; type: string; message: string; created_at: string }
