@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
+import Link from 'next/link' 
 
 type Crop = {
   id: string
@@ -11,7 +13,7 @@ type Crop = {
 }
 
 export default function CropsPage() {
-  const supabase = supabaseBrowser()
+  const supabase = useMemo(() => supabaseBrowser(), [])  
   const [crops, setCrops] = useState<Crop[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
 
@@ -50,7 +52,15 @@ export default function CropsPage() {
           <li key={c.id} className="p-3 bg-white rounded-lg shadow">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-medium">{c.name}</h3>
+                <h3 className="font-medium">
+                  <Link
+                    href={`/crops/${c.id}`}
+                    className="underline decoration-slate-300 hover:decoration-slate-900"
+                  >
+                    {c.name}
+                  </Link>
+                </h3>
+
                 {c.scientific_name && <p className="text-sm opacity-70">{c.scientific_name}</p>}
               </div>
               <button

@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser' // eller '../lib/supabaseBrowser' hvis du ikke har alias
+import supabaseBrowser from '../lib/supabaseBrowser' // eller '../lib/supabaseBrowser' hvis du ikke har alias
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
-import type { Session } from '@supabase/supabase-js' // bruges i state-typen
+import type { Session } from '@supabase/supabase-js' // kun Session bruges
 
 export default function Home() {
   const supabase = supabaseBrowser()
