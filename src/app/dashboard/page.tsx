@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
 import WeatherCard from '@/components/WeatherCard'
 import WaterAdvisor from '@/components/WaterAdvisor'
+import AutoWaterSummary from '@/components/AutoWaterSummary'
+import WeatherHistory from '@/components/WeatherHistory'
 
 type TaskType = 'sow' | 'transplant' | 'fertilize' | 'prune' | 'water' | 'harvest' | 'other'
 type TaskStatus = 'pending' | 'done' | 'skipped'
@@ -179,7 +181,10 @@ export default function Dashboard() {
     <div className="grid gap-6">
       {/* Vejr-kortet */}
       <WeatherCard />
-      <WaterAdvisor />  {/* ← NY */}      
+      <WaterAdvisor />  {/* ← NY */}  
+      <AutoWaterSummary /> {/* NY */}
+      <WeatherHistory /> {/* NY */}
+      
 
       {/* Opgaver */}
       <section>
