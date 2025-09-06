@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import supabaseBrowser from '@/lib/supabaseBrowser'
+import Link from 'next/link'
 
 type Care = {
   sowing_window?: { from?: string; to?: string; method?: 'direct'|'indoor'|'both'; depth_cm?: number }
@@ -147,6 +148,13 @@ export default function CropDetailPage() {
             <input type="checkbox" checked={genTasks} onChange={(e)=>setGenTasks(e.target.checked)} />
             Generér opgaver (så/udplant/gød/høst)
           </label>
+          <div className="flex gap-2">
+           <Link
+            href={`/crops/${id}/logs`}
+            className="px-3 py-2 rounded-lg border border-slate-300 text-slate-900 text-sm hover:bg-slate-50"
+          >
+            Logbog & fotos
+          </Link>
           <button
             onClick={addToMyGarden}
             disabled={adding}
@@ -154,6 +162,7 @@ export default function CropDetailPage() {
           >
             {adding ? 'Tilføjer…' : 'Tilføj til min have'}
           </button>
+          </div>
         </div>
       </header>
 

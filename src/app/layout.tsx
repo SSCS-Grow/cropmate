@@ -1,5 +1,6 @@
 import './globals.css'
 import type { ReactNode } from 'react'
+import NavTasksBadge from '../components/NavTasksBadge'
 
 export const metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || 'CropMate',
@@ -19,6 +20,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   <a className="underline" href="/dashboard">Dashboard</a>
   <a className="underline" href="/crops">Katalog</a>
   <a className="underline" href="/my">Min have</a>
+  <a className="underline inline-flex items-center" href="/tasks">
+      Opgaver
+    <NavTasksBadge /> {/* ← badge her */}
+  </a>
   <a className="underline" href="/settings">Indstillinger</a>
 </nav>
           </header>
