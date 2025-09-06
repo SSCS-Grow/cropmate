@@ -6,10 +6,12 @@ export const runtime = 'nodejs'
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-// Tærskler – justér frit
-const ET0_WATER_MM = 3.5
-const RAIN_SKIP_MM = 1.5
-const HOT_DAY_C = 26
+// fallback defaults, hvis bruger ikke har gemt settings endnu
+const DEFAULTS = {
+  et0_threshold_mm: 3.5,
+  rain_skip_mm: 1.5,
+  hot_day_c: 26
+}
 
 const todayStr = () => new Date().toISOString().slice(0,10)
 
@@ -20,7 +22,6 @@ export async function GET() {
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
 
-  // Profiler med lokation
   const { data: profiles, error: profErr } = await admin
     .from('profiles')
     .select('id, latitude, longitude')
@@ -36,7 +37,18 @@ export async function GET() {
 
   for (const p of profiles || []) {
     try {
-      // Hent daglige værdier for i dag
+      // Hent brugerens thresholds (eller defaults)
+      const { data: us } = await admin
+        .from('user_settings')
+        .select('et0_threshold_mm, rain_skip_mm, hot_day_c')
+        .eq('user_id', p.id)
+        .maybeSingle()
+
+      const et0Thresh = Number(us?.et0_threshold_mm ?? DEFAULTS.et0_threshold_mm)
+      const rainSkip  = Number(us?.rain_skip_mm ?? DEFAULTS.rain_skip_mm)
+      const hotDayC   = Number(us?.hot_day_c ?? DEFAULTS.hot_day_c)
+
+      // Hent vejr
       const url = new URL('https://api.open-meteo.com/v1/forecast')
       url.searchParams.set('latitude', String(p.latitude))
       url.searchParams.set('longitude', String(p.longitude))
@@ -51,17 +63,17 @@ export async function GET() {
       const tmax = Number(wx?.daily?.temperature_2m_max?.[0] ?? 0)
       const tmin = Number(wx?.daily?.temperature_2m_min?.[0] ?? 0)
 
-      // Beslutning
+      // Beslutning med brugerens tærskler
       let shouldWater = false
-      if (rain >= RAIN_SKIP_MM) {
+      if (rain >= rainSkip) {
         shouldWater = false
-      } else if (et0 >= ET0_WATER_MM) {
+      } else if (et0 >= et0Thresh) {
         shouldWater = true
-      } else if (tmax >= HOT_DAY_C && rain < 1) {
+      } else if (tmax >= hotDayC && rain < 1) {
         shouldWater = true
       }
 
-      // Upsert historik inkl. should_water
+      // Log historik med thresholds-resultat
       {
         const { error: histErr } = await admin
           .from('weather_history')
@@ -80,10 +92,9 @@ export async function GET() {
         if (!histErr) historyUpserts++
       }
 
-      // Hvis ikke vandedag, videre til næste bruger
       if (!shouldWater) { touchedUsers++; continue }
 
-      // Hent crops med auto_water = true
+      // Auto-vanding kun for user_crops.auto_water = true
       const { data: ucs } = await admin
         .from('user_crops')
         .select('id, crop_id')
@@ -93,7 +104,6 @@ export async function GET() {
       const rows = (ucs || []) as { id: string; crop_id: string }[]
       if (!rows.length) { touchedUsers++; continue }
 
-      // Undgå dubletter i dag
       const cropIds = rows.map(r => r.crop_id).filter(Boolean)
       if (!cropIds.length) { touchedUsers++; continue }
 
@@ -104,10 +114,10 @@ export async function GET() {
         .eq('type', 'water')
         .eq('due_date', today)
 
-      const existingSet = new Set((existing || []).map((e: any) => e.crop_id))
+      const set = new Set((existing || []).map((e: any) => e.crop_id))
 
       const toInsert = rows
-        .filter(r => !existingSet.has(r.crop_id))
+        .filter(r => !set.has(r.crop_id))
         .map(r => ({
           user_id: p.id,
           crop_id: r.crop_id,
@@ -124,7 +134,7 @@ export async function GET() {
 
       touchedUsers++
     } catch {
-      // fortsæt
+      // videre
     }
   }
 

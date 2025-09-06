@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
 
 type ProfileRow = { latitude: number | null; longitude: number | null }
+type SettingsRow = { et0_threshold_mm: number | null; rain_skip_mm: number | null; hot_day_c: number | null }
 
 type Advice = {
   shouldWater: boolean
@@ -19,6 +20,7 @@ export default function WaterAdvisor() {
   const [advice, setAdvice] = useState<Advice | null>(null)
   const [creating, setCreating] = useState(false)
   const [createdCount, setCreatedCount] = useState<number | null>(null)
+  const [thresholds, setThresholds] = useState<{ et0:number; rain:number; hot:number }>({ et0:3.5, rain:1.5, hot:26 })
 
   const todayStr = () => new Date().toISOString().slice(0,10)
 
@@ -27,28 +29,38 @@ export default function WaterAdvisor() {
     ;(async () => {
       setLoading(true)
 
-      // 1) Session + profil
       const { data: session } = await supabase.auth.getSession()
       const uid = session.session?.user.id
       if (!uid) { setLoading(false); return }
 
+      // profile
       const { data: prof } = await supabase
         .from('profiles')
         .select('latitude, longitude')
-        .eq('id', uid)
-        .maybeSingle()
+        .eq('id', uid).maybeSingle()
 
       const p = (prof || {}) as ProfileRow
       if (!p || p.latitude == null || p.longitude == null) { setLoading(false); return }
       if (!alive) return
       setCoords({ lat: p.latitude, lon: p.longitude })
 
-      // 2) Hent vejr (i dag + 2 dage), daglig: max temp & nedbørssum
+      // user_settings
+      const { data: us } = await supabase
+        .from('user_settings')
+        .select('et0_threshold_mm, rain_skip_mm, hot_day_c')
+        .eq('user_id', uid).maybeSingle()
+
+      const et0Thr = Number(us?.et0_threshold_mm ?? 3.5)
+      const rainThr = Number(us?.rain_skip_mm ?? 1.5)
+      const hotC = Number(us?.hot_day_c ?? 26)
+      setThresholds({ et0: et0Thr, rain: rainThr, hot: hotC })
+
+      // weather
       const url = new URL('https://api.open-meteo.com/v1/forecast')
       url.searchParams.set('latitude', String(p.latitude))
       url.searchParams.set('longitude', String(p.longitude))
-      url.searchParams.set('daily', 'temperature_2m_max,precipitation_sum')
-      url.searchParams.set('forecast_days', '3')
+      url.searchParams.set('daily', 'et0_fao_evapotranspiration,precipitation_sum,temperature_2m_max')
+      url.searchParams.set('forecast_days', '1')
       url.searchParams.set('timezone', 'Europe/Copenhagen')
 
       let recommendation: Advice = {
@@ -61,51 +73,37 @@ export default function WaterAdvisor() {
       try {
         const res = await fetch(url.toString(), { cache: 'no-store' })
         const json = await res.json()
-        const days: string[] = json?.daily?.time ?? []
-        const tmax: number[] = json?.daily?.temperature_2m_max ?? []
-        const prec: number[] = json?.daily?.precipitation_sum ?? []
+        const et0 = Number(json?.daily?.et0_fao_evapotranspiration?.[0] ?? 0)
+        const r0  = Number(json?.daily?.precipitation_sum?.[0] ?? 0)
+        const t   = Number(json?.daily?.temperature_2m_max?.[0] ?? 0)
 
-        // Simple, gennemskuelige regler:
-        // - Hvis i dag: tmax >= 26°C og regn < 1mm → HØJ (vand)
-        // - Eller (tmax 22–25°C og regn < 1mm) → MID (overvej vanding)
-        // - Hvis kommende 48h regn >= 6mm → LAV (vent)
-        // - Ellers: neutral
-        if (days.length) {
-          const i0 = 0
-          const i1 = Math.min(1, prec.length - 1)
-          const i2 = Math.min(2, prec.length - 1)
-          const t = tmax[i0] ?? 0
-          const r0 = prec[i0] ?? 0
-          const r48 = (prec[i0] ?? 0) + (prec[i1] ?? 0) // enkel sum ~næste 48h
-
-          if (r48 >= 6) {
-            recommendation = {
-              shouldWater: false,
-              reason: 'Der ventes >6 mm regn inden for 48 timer – vent med at vande.',
-              severity: 'low',
-              todayStr: todayStr()
-            }
-          } else if (t >= 26 && r0 < 1) {
-            recommendation = {
-              shouldWater: true,
-              reason: 'Varm dag (≥26°C) og næsten ingen regn i dag – vand anbefales.',
-              severity: 'high',
-              todayStr: todayStr()
-            }
-          } else if (t >= 22 && t < 26 && r0 < 1) {
-            recommendation = {
-              shouldWater: true,
-              reason: 'Lun dag (22–25°C) og næsten ingen regn i dag – overvej vanding.',
-              severity: 'medium',
-              todayStr: todayStr()
-            }
-          } else {
-            recommendation = {
-              shouldWater: false,
-              reason: 'Ingen tydelig varme/tørke – vanding er nok ikke nødvendig.',
-              severity: 'low',
-              todayStr: todayStr()
-            }
+        if (r0 >= rainThr) {
+          recommendation = {
+            shouldWater: false,
+            reason: `Der ventes ≥ ${rainThr} mm regn i dag – vent med at vande.`,
+            severity: 'low',
+            todayStr: todayStr()
+          }
+        } else if (et0 >= et0Thr) {
+          recommendation = {
+            shouldWater: true,
+            reason: `ET₀ er høj (≥ ${et0Thr} mm) og lav regn i dag – vand anbefales.`,
+            severity: 'high',
+            todayStr: todayStr()
+          }
+        } else if (t >= hotC && r0 < 1) {
+          recommendation = {
+            shouldWater: true,
+            reason: `Varm dag (≥ ${hotC}°C) og næsten ingen regn – overvej vanding.`,
+            severity: 'medium',
+            todayStr: todayStr()
+          }
+        } else {
+          recommendation = {
+            shouldWater: false,
+            reason: 'Ingen tydelig varme/tørke – vanding er nok ikke nødvendig.',
+            severity: 'low',
+            todayStr: todayStr()
           }
         }
       } catch {
@@ -132,17 +130,17 @@ export default function WaterAdvisor() {
       const uid = session.session?.user.id
       if (!uid) { alert('Log ind først.'); return }
 
-      // Hent alle brugerens afgrøder
+      // Hent brugerens afgrøder
       const { data: uc } = await supabase
         .from('user_crops')
-        .select('id, crop_id')
+        .select('id, crop_id, auto_water')
         .eq('user_id', uid)
 
-      const rows = (uc || []) as { id: string; crop_id: string }[]
-      if (!rows.length) { alert('Du har ingen afgrøder i “Min have”.'); return }
+      const rows = (uc || []) as { id: string; crop_id: string; auto_water: boolean | null }[]
+      // Brug KUN dem med auto_water
+      const allowed = rows.filter(r => !!r.auto_water)
+      if (!allowed.length) { alert('Ingen af dine afgrøder har Auto-vanding slået til.'); setCreating(false); return }
 
-      // Find hvilke crops allerede har en pending water-opgave i dag
-      const cropIds = rows.map(r => r.crop_id)
       const today = todayStr()
 
       const { data: existing } = await supabase
@@ -152,12 +150,10 @@ export default function WaterAdvisor() {
         .eq('status', 'pending')
         .eq('type', 'water')
         .eq('due_date', today)
-        .in('crop_id', cropIds)
 
       const existingSet = new Set((existing || []).map((e: any) => e.crop_id))
 
-      // Indsæt tasks for de crops, der mangler
-      const toInsert = rows
+      const toInsert = allowed
         .filter(r => !existingSet.has(r.crop_id))
         .map(r => ({
           user_id: uid,
@@ -165,7 +161,7 @@ export default function WaterAdvisor() {
           type: 'water' as const,
           due_date: today,
           status: 'pending' as const,
-          notes: 'Automatisk oprettet via vandingsråd'
+          notes: 'Oprettet fra “Vanding i dag?”'
         }))
 
       if (toInsert.length) {
@@ -173,15 +169,13 @@ export default function WaterAdvisor() {
         if (error) throw error
       }
       setCreatedCount(toInsert.length)
-    } catch (e) {
-      console.error(e)
+    } catch {
       alert('Kunne ikke oprette vandingsopgaver.')
     } finally {
       setCreating(false)
     }
   }
 
-  // UI
   if (loading) {
     return (
       <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
@@ -190,16 +184,14 @@ export default function WaterAdvisor() {
     )
   }
 
-  if (!coords) {
+  if (!coords || !advice) {
     return (
       <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
         <h3 className="font-medium mb-1">Vanding i dag?</h3>
-        <p className="text-sm">Ingen lokation sat. Udfyld latitude/longitude under <a className="underline" href="/settings">Indstillinger</a>.</p>
+        <p className="text-sm">Ingen lokation eller data.</p>
       </section>
     )
   }
-
-  if (!advice) return null
 
   const pill =
     advice.severity === 'high'   ? 'bg-orange-100 text-orange-800' :
@@ -212,6 +204,9 @@ export default function WaterAdvisor() {
         <div>
           <h3 className="font-medium">Vanding i dag?</h3>
           <p className="text-xs opacity-60">Lat {coords.lat.toFixed(3)} • Lon {coords.lon.toFixed(3)}</p>
+          <p className="text-[11px] opacity-60 mt-1">
+            Dine tærskler: ET₀ ≥ {thresholds.et0} mm • Regn-skip ≥ {thresholds.rain} mm • Hedebølge ≥ {thresholds.hot}°C
+          </p>
         </div>
         <span className={`text-xs px-2 py-0.5 rounded ${pill}`}>
           {advice.shouldWater ? (advice.severity === 'high' ? 'Anbefalet' : 'Overvej') : 'Ikke nødvendig'}
@@ -226,11 +221,11 @@ export default function WaterAdvisor() {
           disabled={creating}
           className="px-3 py-2 rounded bg-slate-900 text-white text-xs"
         >
-          {creating ? 'Opretter…' : 'Opret vandingsopgaver i dag'}
+          {creating ? 'Opretter…' : 'Opret vandingsopgaver i dag (Auto-vanding)'}
         </button>
         {createdCount !== null && (
           <span className="text-xs opacity-70">
-            {createdCount === 0 ? 'Alle havde allerede en opgave i dag.' : `Oprettede ${createdCount} opgave(r).`}
+            {createdCount === 0 ? 'Ingen nye – opgaver fandtes allerede.' : `Oprettede ${createdCount} opgave(r).`}
           </span>
         )}
       </div>

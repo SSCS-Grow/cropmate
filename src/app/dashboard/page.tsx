@@ -6,6 +6,8 @@ import WeatherCard from '@/components/WeatherCard'
 import WaterAdvisor from '@/components/WaterAdvisor'
 import AutoWaterSummary from '@/components/AutoWaterSummary'
 import WeatherHistory from '@/components/WeatherHistory'
+import WeatherHistoryChart from '@/components/WeatherHistoryChart'
+
 
 type TaskType = 'sow' | 'transplant' | 'fertilize' | 'prune' | 'water' | 'harvest' | 'other'
 type TaskStatus = 'pending' | 'done' | 'skipped'
@@ -183,8 +185,9 @@ export default function Dashboard() {
       <WeatherCard />
       <WaterAdvisor />  {/* ← NY */}  
       <AutoWaterSummary /> {/* NY */}
+      <WeatherHistoryChart /> {/* NY */}
       <WeatherHistory /> {/* NY */}
-      
+
 
       {/* Opgaver */}
       <section>
