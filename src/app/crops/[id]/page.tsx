@@ -5,236 +5,214 @@ import { useParams, useRouter } from 'next/navigation'
 import supabaseBrowser from '@/lib/supabaseBrowser'
 import Link from 'next/link'
 
-type Care = {
-  sowing_window?: { from?: string; to?: string; method?: 'direct'|'indoor'|'both'; depth_cm?: number }
-  transplant_window?: { from?: string; to?: string; note?: string }
-  spacing?: { in_row_cm: number; between_rows_cm: number }
-  sun?: 'full' | 'part'
-  soil?: { pH_min?: number; pH_max?: number; drainage?: 'well'|'medium'|'heavy'; organic_matter?: 'low'|'medium'|'high' }
-  watering?: { need: 'low'|'medium'|'high'; notes?: string }
-  fertilizing?: { need: 'low'|'medium'|'high'; notes?: string }
-  frost?: { sensitive: boolean; last_frost_safe: 'after' | 'tolerates_light' }
-  harvest_window?: { from?: string; to?: string }
-  notes?: string
-  pests?: string[]
-  diseases?: string[]
-  greenhouse_ok?: boolean
-}
-
 type Crop = {
   id: string
   name: string
   scientific_name: string | null
-  description: string | null
-  care: Care | null
   category: string | null
+  description: string | null
+  frost_sensitive: boolean | null
 }
 
+type UserCrop = {
+  id: string
+  user_id: string
+  crop_id: string
+  planted_on: string | null
+  location_note: string | null
+  notes: string | null
+  auto_water: boolean | null
+}
+
+type GenerateResp = { ok: boolean; generated: number }
+
 export default function CropDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const params = useParams<{ id: string }>()
+  const cropId = params.id
   const router = useRouter()
-  const supabase = useMemo(() => supabaseBrowser(), [])  
-  const [crop, setCrop] = useState<Crop | null>(null)
+  const supabase = useMemo(() => supabaseBrowser(), [])
+
   const [loading, setLoading] = useState(true)
+  const [crop, setCrop] = useState<Crop | null>(null)
+
+  const [loggedIn, setLoggedIn] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  const [userCrop, setUserCrop] = useState<UserCrop | null>(null)
+
   const [adding, setAdding] = useState(false)
-  const [genTasks, setGenTasks] = useState(true)
+  const [genLoading, setGenLoading] = useState(false)
+  const [genMsg, setGenMsg] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const { data, error } = await supabase.from('crops').select('*').eq('id', id).maybeSingle()
+      setLoading(true)
+      setErrorMsg(null)
+
+      // 1) Hent afgrøde
+      const { data: cData, error: cErr } = await supabase
+        .from('crops')
+        .select('id, name, scientific_name, category, description, frost_sensitive')
+        .eq('id', cropId)
+        .maybeSingle()
+
       if (!alive) return
-      if (error || !data) {
-        alert('Kunne ikke hente afgrøden')
-        router.push('/crops')
+      if (cErr) {
+        setErrorMsg('Kunne ikke hente afgrøden.')
+        setCrop(null)
+        setLoading(false)
         return
       }
-      setCrop(data as Crop)
+      setCrop(cData as Crop | null)
+
+      // 2) Session + user
+      const { data: session } = await supabase.auth.getSession()
+      const uid = session.session?.user.id ?? null
+      setLoggedIn(!!uid)
+      setUserId(uid)
+
+      // 3) Hvis logget ind: tjek om afgrøden findes i Min have
+      if (uid) {
+        const { data: ucData } = await supabase
+          .from('user_crops')
+          .select('id, user_id, crop_id, planted_on, location_note, notes, auto_water')
+          .eq('user_id', uid)
+          .eq('crop_id', cropId)
+          .maybeSingle()
+
+        if (!alive) return
+        setUserCrop((ucData as UserCrop | null) ?? null)
+      }
+
       setLoading(false)
     })()
     return () => { alive = false }
-  }, [id, router, supabase])
+  }, [supabase, cropId])
 
-  const prettyMethod = (m?: 'direct' | 'indoor' | 'both') =>
-    m === 'direct' ? 'Direkte såning'
-      : m === 'indoor' ? 'Forkultiver indendørs'
-      : m === 'both' ? 'Direkte eller forkultiver'
-      : undefined
-
-  const windowLabel = (win?: { from?: string; to?: string }) => {
-    if (!win?.from && !win?.to) return undefined
-    const f = win.from ? win.from.replace('-', '/') : '?'
-    const t = win.to ? win.to.replace('-', '/') : '?'
-    return `${f} → ${t} (MM/DD)`
-  }
-
-  const tasksToCreate = useMemo(() => {
-    if (!crop?.care) return []
-    const nowYear = new Date().getFullYear()
-    const parseMD = (md?: string) => {
-      if (!md) return null
-      const [mm, dd] = md.split('-').map(Number)
-      if (!mm || !dd) return null
-      return new Date(Date.UTC(nowYear, mm - 1, dd))
-    }
-
-    const t: Array<{ type: 'sow'|'transplant'|'fertilize'|'harvest'; due_date: string; notes?: string }> = []
-
-    const sowFrom = parseMD(crop.care.sowing_window?.from)
-    if (sowFrom) t.push({ type: 'sow', due_date: sowFrom.toISOString().slice(0,10), notes: prettyMethod(crop.care.sowing_window?.method) })
-
-    const transFrom = parseMD(crop.care.transplant_window?.from)
-    if (transFrom) t.push({ type: 'transplant', due_date: transFrom.toISOString().slice(0,10), notes: crop.care.transplant_window?.note })
-
-    const harvFrom = parseMD(crop.care.harvest_window?.from)
-    if (harvFrom) t.push({ type: 'harvest', due_date: harvFrom.toISOString().slice(0,10) })
-
-    if (crop.care.fertilizing?.need === 'high' || crop.care.fertilizing?.need === 'medium') {
-      const mid = new Date(Date.UTC(nowYear, 6, 1)) // 1. juli
-      t.push({ type: 'fertilize', due_date: mid.toISOString().slice(0,10), notes: crop.care.fertilizing?.notes })
-    }
-    return t
-  }, [crop])
-
-  const addToMyGarden = async () => {
-    if (!crop) return
+  async function addToMyGarden() {
+    if (!userId || !crop) return
     setAdding(true)
+    setGenMsg(null)
     try {
-      const { data: session } = await supabase.auth.getSession()
-      const userId = session.session?.user.id
-      if (!userId) { alert('Log ind først'); setAdding(false); return }
-      const planted_on = new Date().toISOString().slice(0,10)
-
-      const { error: insErr } = await supabase.from('user_crops').insert({ user_id: userId, crop_id: crop.id, planted_on })
-      if (insErr) throw insErr
-
-      if (genTasks && tasksToCreate.length) {
-        const rows = tasksToCreate.map(t => ({
+      const today = new Date().toISOString().slice(0, 10)
+      const { data, error } = await supabase
+        .from('user_crops')
+        .insert({
           user_id: userId,
           crop_id: crop.id,
-          type: t.type,
-          due_date: t.due_date,
-          status: 'pending' as const,
-          notes: t.notes ?? null
-        }))
-        await supabase.from('tasks').insert(rows)
-      }
+          planted_on: today,
+        })
+        .select('id, user_id, crop_id, planted_on, location_note, notes, auto_water')
+        .maybeSingle()
 
-      alert('Tilføjet til din have ✔️')
-    } catch (e) {
-      console.error(e)
-      alert('Kunne ikke tilføje – tjek login/permissions')
+      if (error) throw error
+      setUserCrop(data as UserCrop)
+    } catch {
+      setErrorMsg('Kunne ikke tilføje afgrøden til Min have.')
     } finally {
       setAdding(false)
     }
   }
 
-  if (loading) return <div className="opacity-60">Henter…</div>
-  if (!crop) return <div className="opacity-60">Afgrøde ikke fundet.</div>
+  async function generateTasks() {
+    if (!userCrop) return
+    setGenLoading(true)
+    setGenMsg(null)
+    try {
+      const res = await fetch(`/api/user-crops/${userCrop.id}/generate-tasks`, { method: 'POST' })
+      const json: GenerateResp = await res.json()
+      if (!res.ok) {
+        setGenMsg('Kunne ikke generere opgaver.')
+      } else {
+        setGenMsg(`Oprettet ${json.generated} opgave(r).`)
+      }
+    } catch {
+      setGenMsg('Kunne ikke generere opgaver.')
+    } finally {
+      setGenLoading(false)
+    }
+  }
 
-  const c = crop.care
+  if (loading) {
+    return <div className="p-4 opacity-60">Indlæser afgrøde…</div>
+  }
+
+  if (!crop) {
+    return (
+      <div className="p-4">
+        <p className="mb-3">Afgrøden blev ikke fundet.</p>
+        <Link className="underline" href="/crops">Tilbage til katalog</Link>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="grid gap-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">{crop.name}</h1>
-          {crop.scientific_name && <p className="opacity-70 italic">{crop.scientific_name}</p>}
-          {crop.category && <p className="text-sm opacity-70 mt-1">Kategori: {crop.category}</p>}
+          <p className="text-sm opacity-70">
+            {crop.scientific_name || '—'} • {crop.category || '—'}
+            {crop.frost_sensitive ? ' • Frostfølsom' : ''}
+          </p>
         </div>
-
-        <div className="flex flex-col items-end gap-2">
-          <label className="text-xs flex items-center gap-2">
-            <input type="checkbox" checked={genTasks} onChange={(e)=>setGenTasks(e.target.checked)} />
-            Generér opgaver (så/udplant/gød/høst)
-          </label>
-          <div className="flex gap-2">
-           <Link
-            href={`/crops/${id}/logs`}
-            className="px-3 py-2 rounded-lg border border-slate-300 text-slate-900 text-sm hover:bg-slate-50"
-          >
-            Logbog & fotos
-          </Link>
-          <button
-            onClick={addToMyGarden}
-            disabled={adding}
-            className="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm"
-          >
-            {adding ? 'Tilføjer…' : 'Tilføj til min have'}
-          </button>
-          </div>
-        </div>
+        <Link className="text-sm underline" href="/crops">Tilbage</Link>
       </header>
+
+      {errorMsg && (
+        <div className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded p-3">
+          {errorMsg}
+        </div>
+      )}
 
       {crop.description && (
         <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
           <h3 className="font-medium mb-2">Beskrivelse</h3>
-          <p className="text-sm leading-6">{crop.description}</p>
+          <p className="text-sm whitespace-pre-line">{crop.description}</p>
         </section>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
-          <h3 className="font-medium mb-2">Dyrkningsvinduer</h3>
-          <ul className="text-sm space-y-2">
-            <li><span className="font-medium">Såning: </span>{windowLabel(c?.sowing_window) || '—'} {c?.sowing_window?.method && <>• {prettyMethod(c?.sowing_window?.method)}</>}</li>
-            <li><span className="font-medium">Udplantning: </span>{windowLabel(c?.transplant_window) || '—'} {c?.transplant_window?.note && <>• {c?.transplant_window?.note}</>}</li>
-            <li><span className="font-medium">Høst: </span>{windowLabel(c?.harvest_window) || '—'}</li>
-          </ul>
-        </section>
+      <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
+        <h3 className="font-medium mb-3">Handlinger</h3>
 
-        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
-          <h3 className="font-medium mb-2">Afstand & placering</h3>
-          <ul className="text-sm space-y-2">
-            <li><span className="font-medium">Afstand: </span>{c?.spacing ? `${c.spacing.in_row_cm} cm i rækken • ${c.spacing.between_rows_cm} cm mellem rækker` : '—'}</li>
-            <li><span className="font-medium">Sol: </span>{c?.sun === 'full' ? 'Fuld sol' : c?.sun === 'part' ? 'Halvskygge' : '—'}</li>
-            <li><span className="font-medium">Drivhus egnet: </span>{c?.greenhouse_ok ? 'Ja' : 'Nej/ikke nødvendigt'}</li>
-          </ul>
-        </section>
-
-        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
-          <h3 className="font-medium mb-2">Jord & vand</h3>
-          <ul className="text-sm space-y-2">
-            <li><span className="font-medium">Jord: </span>
-              {c?.soil
-                ? [
-                    c.soil.drainage ? (c.soil.drainage === 'well' ? 'veldrænet' : c.soil.drainage === 'medium' ? 'middeldrænet' : 'tung') : null,
-                    c.soil.pH_min && c.soil.pH_max ? `pH ${c.soil.pH_min}–${c.soil.pH_max}` : null,
-                    c.soil.organic_matter ? `organisk materiale: ${c.soil.organic_matter}` : null
-                  ].filter(Boolean).join(' • ')
-                : '—'}
-            </li>
-            <li><span className="font-medium">Vanding: </span>{c?.watering ? `${c.watering.need} behov` : '—'}{c?.watering?.notes ? ` • ${c.watering.notes}` : ''}</li>
-            <li><span className="font-medium">Gødskning: </span>{c?.fertilizing ? `${c.fertilizing.need} behov` : '—'}{c?.fertilizing?.notes ? ` • ${c.fertilizing.notes}` : ''}</li>
-          </ul>
-        </section>
-
-        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
-          <h3 className="font-medium mb-2">Frost & risici</h3>
-          <ul className="text-sm space-y-2">
-            <li><span className="font-medium">Frost: </span>
-              {c?.frost ? (c.frost.sensitive ? 'Frostfølsom' : 'Tåler let frost') : '—'}
-              {c?.frost?.last_frost_safe === 'after' ? ' • Udplant efter sidste frost' : c?.frost?.last_frost_safe === 'tolerates_light' ? ' • Tåler let frost' : ''}
-            </li>
-            <li><span className="font-medium">Skadedyr: </span>{c?.pests?.length ? c.pests.join(', ') : '—'}</li>
-            <li><span className="font-medium">Sygdomme: </span>{c?.diseases?.length ? c.diseases.join(', ') : '—'}</li>
-          </ul>
-        </section>
-      </div>
-
-      {genTasks && tasksToCreate.length > 0 && (
-        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
-          <h3 className="font-medium mb-2">Foreslåede opgaver (oprettes ved tilføjelse)</h3>
-          <ol className="list-decimal pl-5 text-sm space-y-1">
-            {tasksToCreate.map((t, i) => (
-              <li key={i}>
-                <span className="font-medium">{t.type}</span> – forfald {t.due_date}
-                {t.notes ? ` • ${t.notes}` : ''}
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
+        {!loggedIn ? (
+          <p className="text-sm opacity-70">Log ind for at tilføje afgrøden og generere opgaver.</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            {!userCrop ? (
+              <button
+                onClick={addToMyGarden}
+                disabled={adding}
+                className="px-3 py-2 rounded bg-slate-900 text-white text-sm"
+              >
+                {adding ? 'Tilføjer…' : 'Tilføj til Min have'}
+              </button>
+            ) : (
+              <>
+                <span className="text-sm opacity-70">
+                  I din have siden {userCrop.planted_on ?? '—'}
+                </span>
+                <button
+                  onClick={generateTasks}
+                  disabled={genLoading}
+                  className="px-3 py-2 rounded bg-slate-900 text-white text-sm"
+                >
+                  {genLoading ? 'Genererer…' : 'Generér opgaver'}
+                </button>
+                {genMsg && <span className="text-xs opacity-70">{genMsg}</span>}
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="px-3 py-2 rounded border text-sm"
+                >
+                  Gå til Dashboard
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

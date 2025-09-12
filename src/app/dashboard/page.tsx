@@ -187,7 +187,7 @@ export default function Dashboard() {
       <AutoWaterSummary /> {/* NY */}
       <WeatherHistoryChart /> {/* NY */}
       <WeatherHistory /> {/* NY */}
-
+      
 
       {/* Opgaver */}
       <section>
