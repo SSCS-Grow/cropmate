@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/weather",  "schedule": "0 * * * *" },
-    { "path": "/api/cron/watering", "schedule": "0 5 * * *" }
+    { "path": "/api/cron/watering", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/hazards", "schedule": "0 6 * * *" }
   ]
 }

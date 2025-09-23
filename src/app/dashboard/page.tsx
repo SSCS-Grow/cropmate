@@ -1,15 +1,70 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import supabaseBrowser from '@/lib/supabaseBrowser'
-import WeatherCard from '@/components/WeatherCard'
-import WaterAdvisor from '@/components/WaterAdvisor'
-import AutoWaterSummary from '@/components/AutoWaterSummary'
-import WeatherHistory from '@/components/WeatherHistory'
-import WeatherHistoryChart from '@/components/WeatherHistoryChart'
 
+// Vejrkortet
+const WeatherCard = dynamic(
+  () => import('@/components/WeatherCard').then((m) => m.default ?? (m as any)),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4 opacity-60">
+        Indlæser vejr…
+      </div>
+    ),
+  }
+)
 
-type TaskType = 'sow' | 'transplant' | 'fertilize' | 'prune' | 'water' | 'harvest' | 'other'
+// Vandingsoversigt (ET₀/auto-plan)
+const AutoWaterSummary = dynamic(
+  () => import('@/components/AutoWaterSummary').then((m) => m.default ?? (m as any)),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4 opacity-60">
+        Indlæser vandingsoversigt…
+      </div>
+    ),
+  }
+)
+
+// Vandingsrådgiver (5 dage frem)
+const WaterAdvisor = dynamic(
+  () => import('@/components/WaterAdvisor').then((m) => m.default ?? (m as any)),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4 opacity-60">
+        Indlæser vandingsråd…
+      </div>
+    ),
+  }
+)
+
+// Vejrhistorik (7 dage)
+const WeatherHistory = dynamic(
+  () => import('@/components/WeatherHistory').then((m) => m.default ?? (m as any)),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4 opacity-60">
+        Indlæser vejrhistorik…
+      </div>
+    ),
+  }
+)
+
+type TaskType =
+  | 'sow'
+  | 'transplant'
+  | 'fertilize'
+  | 'prune'
+  | 'water'
+  | 'harvest'
+  | 'other'
 type TaskStatus = 'pending' | 'done' | 'skipped'
 
 type TaskRow = {
@@ -17,219 +72,242 @@ type TaskRow = {
   user_id: string
   crop_id: string | null
   type: TaskType
-  due_date: string          // YYYY-MM-DD
+  due_date: string
   status: TaskStatus
   notes: string | null
-  created_at: string
 }
 
-type AlertType = 'frost' | 'pest' | 'disease' | 'heat' | 'rain' | 'drought'
+type AlertKind = 'frost' | 'pest' | 'disease' | string
 
 type AlertRow = {
   id: string
   user_id: string
-  type: AlertType
-  severity: number
-  message: string
+  type: AlertKind
+  severity: number | null
+  message: string | null
+  created_at: string
   valid_from: string | null
   valid_to: string | null
-  created_at: string
+  hazard_id?: string | null
 }
 
 export default function Dashboard() {
   const supabase = useMemo(() => supabaseBrowser(), [])
-  const [loading, setLoading] = useState(true)
-  const [loggedIn, setLoggedIn] = useState(false)
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [alerts, setAlerts] = useState<AlertRow[]>([])
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
-
-  // UNDO state
-  const [undoOpen, setUndoOpen] = useState(false)
-  const [undoLabel, setUndoLabel] = useState<string>('') // vises i toast
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastAction = useRef<{ taskId: string; prevStatus: TaskStatus } | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       setLoading(true)
-
       const { data: session } = await supabase.auth.getSession()
-      const uid = session.session?.user.id
-      if (!uid) {
-        if (alive) {
-          setLoggedIn(false)
-          setTasks([])
-          setAlerts([])
-          setLoading(false)
-        }
-        return
-      }
-      setLoggedIn(true)
+      if (!session.session) { setLoading(false); return }
 
-      const { data: tData } = await supabase
-        .from('tasks')
-        .select('id, user_id, crop_id, type, due_date, status, notes, created_at')
-        .eq('user_id', uid)
-        .order('due_date', { ascending: true })
-        .limit(10)
-
-      const { data: aData } = await supabase
-        .from('alerts')
-        .select('id, user_id, type, severity, message, valid_from, valid_to, created_at')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-        .limit(5)
+      const [{ data: t }, { data: a }] = await Promise.all([
+        supabase.from('tasks').select('*').order('due_date', { ascending: true }).limit(20),
+        supabase.from('alerts').select('*').order('created_at', { ascending: false }).limit(10),
+      ])
 
       if (!alive) return
-      setTasks((tData || []) as TaskRow[])
-      setAlerts((aData || []) as AlertRow[])
+      setTasks((t || []) as TaskRow[])
+      setAlerts((a || []) as AlertRow[])
       setLoading(false)
     })()
     return () => { alive = false }
   }, [supabase])
 
   const taskPill = (type: TaskType) =>
-    type === 'sow'        ? 'bg-green-100 text-green-800' :
-    type === 'transplant' ? 'bg-emerald-100 text-emerald-800' :
+    type === 'sow'        ? 'bg-green-100 text-green-800'   :
+    type === 'transplant' ? 'bg-emerald-100 text-emerald-800':
     type === 'fertilize'  ? 'bg-yellow-100 text-yellow-800' :
     type === 'prune'      ? 'bg-purple-100 text-purple-800' :
-    type === 'water'      ? 'bg-blue-100 text-blue-800' :
+    type === 'water'      ? 'bg-blue-100 text-blue-800'     :
     type === 'harvest'    ? 'bg-orange-100 text-orange-800' :
                             'bg-slate-100 text-slate-800'
 
-  const statusPill = (status: TaskStatus) =>
-    status === 'pending' ? 'bg-slate-100 text-slate-700' :
-    status === 'done'    ? 'bg-green-200 text-green-800' :
-    status === 'skipped' ? 'bg-red-100 text-red-800' :
-                           'bg-slate-100 text-slate-700'
-
-  const alertPill = (type: AlertType) =>
-    type === 'frost'   ? 'bg-blue-100 text-blue-800' :
-    type === 'heat'    ? 'bg-orange-100 text-orange-800' :
-    type === 'rain'    ? 'bg-sky-100 text-sky-800' :
-    type === 'drought' ? 'bg-amber-100 text-amber-800' :
-    type === 'pest'    ? 'bg-lime-100 text-lime-800' :
-    type === 'disease' ? 'bg-rose-100 text-rose-800' :
-                         'bg-slate-100 text-slate-800'
-
-  const showUndo = (task: TaskRow, newStatus: TaskStatus) => {
-    // ryd tidligere timer
-    if (undoTimer.current) { clearTimeout(undoTimer.current); undoTimer.current = null }
-    lastAction.current = { taskId: task.id, prevStatus: task.status }
-    setUndoLabel(`Markeret som ${newStatus === 'done' ? 'udført' : 'sprunget over'}`)
-    setUndoOpen(true)
-    // auto-hide efter 5 sek
-    undoTimer.current = setTimeout(() => setUndoOpen(false), 5000)
+  function alertBadge(a: AlertRow) {
+    switch (a.type) {
+      case 'frost':
+        return { cls: 'bg-sky-100 text-sky-800', label: 'Frost', icon: '❄️' }
+      case 'pest':
+        return { cls: 'bg-rose-100 text-rose-800', label: 'Skadedyr', icon: '🐛' }
+      case 'disease':
+        return { cls: 'bg-amber-100 text-amber-900', label: 'Sygdom', icon: '🦠' }
+      default:
+        return { cls: 'bg-slate-100 text-slate-800', label: a.type, icon: '🔔' }
+    }
   }
 
-  const undoLast = async () => {
-    const action = lastAction.current
-    if (!action) return
-    setUndoOpen(false)
+  const today = new Date().toISOString().slice(0, 10)
+  const todaysInspections = tasks.filter(
+    t => t.notes?.startsWith('Inspektion:') && t.due_date === today
+  ).length
+
+  // Markér opgave som 'done' eller 'skipped' (optimistisk UI + rollback)
+  async function setTaskStatus(id: string, newStatus: TaskStatus) {
+    const prev = [...tasks]
+    setTasks(prev.map(t => t.id === id ? { ...t, status: newStatus } : t))
+    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', id)
+    if (error) {
+      setTasks(prev) // rollback
+      alert('Kunne ikke opdatere opgaven – prøv igen.')
+    }
+  }
+
+  async function undoTaskStatus(id: string) {
+    await setTaskStatus(id, 'pending')
+  }
+
+  // Opret inspektionsopgaver fra et varsel
+  async function createInspectionFromAlert(a: AlertRow) {
     try {
-      // Optimistisk UI
-      setTasks(prev => prev.map(t => t.id === action.taskId ? { ...t, status: action.prevStatus } : t))
-      const { error } = await supabase.from('tasks').update({ status: action.prevStatus }).eq('id', action.taskId)
-      if (error) throw error
+      if (a.type !== 'pest' && a.type !== 'disease') {
+        alert('Kun relevant for skadedyr/sygdom.')
+        return
+      }
+      if (!a.hazard_id) {
+        alert('Denne varsel er ikke knyttet til en trussel.')
+        return
+      }
+
+      const { data: session } = await supabase.auth.getSession()
+      const uid = session.session?.user.id
+      if (!uid) { alert('Log ind først.'); return }
+
+      const { data: uc } = await supabase.from('user_crops').select('crop_id').eq('user_id', uid)
+      const mySet = new Set<string>((uc || []).map((r: { crop_id: string }) => r.crop_id))
+
+      const { data: hosts } = await supabase
+        .from('hazard_hosts')
+        .select('crop_id')
+        .eq('hazard_id', a.hazard_id)
+
+      const hostIds = (hosts || []).map((h: { crop_id: string }) => h.crop_id)
+      const affected = hostIds.filter((cid) => mySet.has(cid))
+
+      if (!affected.length) {
+        alert('Ingen af dine afgrøder er værter for denne trussel.')
+        return
+      }
+
+      const rows = affected.map((cid) => ({
+        user_id: uid,
+        crop_id: cid,
+        type: 'other' as const,
+        due_date: today,
+        status: 'pending' as const,
+        notes: `Inspektion: ${a.message?.split(':')[0] || 'Trussel'}`,
+      }))
+
+      const { error } = await supabase
+        .from('tasks')
+        .upsert(rows, { onConflict: 'user_id,crop_id,type,due_date', ignoreDuplicates: true })
+
+      if (error) {
+        alert('Kunne ikke oprette opgaver (eller de findes allerede). Tjek dashboard.')
+      } else {
+        alert(`Oprettet ${rows.length} inspektionsopgave(r) i dag.`)
+        const { data: t } = await supabase
+          .from('tasks').select('*').order('due_date', { ascending: true }).limit(20)
+        setTasks((t || []) as TaskRow[])
+      }
     } catch {
-      alert('Kunne ikke fortryde. Prøv igen.')
-    } finally {
-      lastAction.current = null
+      alert('Noget gik galt ved oprettelse af inspektionsopgaver.')
     }
   }
 
-  const updateTaskStatus = async (task: TaskRow, newStatus: TaskStatus) => {
-    setUpdatingId(task.id)
-    // Optimistisk UI-opdatering:
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t))
-    showUndo(task, newStatus)
-    try {
-      const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', task.id)
-      if (error) throw error
-    } catch (e) {
-      // Revert hvis fejl
-      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t))
-      setUndoOpen(false)
-      alert('Kunne ikke opdatere opgaven. Prøv igen.')
-    } finally {
-      setUpdatingId(null)
-    }
-  }
-
-  const markDone = (t: TaskRow) => updateTaskStatus(t, 'done')
-  const markSkipped = (t: TaskRow) => updateTaskStatus(t, 'skipped')
-
-  if (loading) {
-    return (
-      <div className="grid gap-6">
-        <WeatherCard />
-        <div className="opacity-60">Indlæser dashboard…</div>
-      </div>
-    )
-  }
-
-  if (!loggedIn) {
-    return (
-      <div className="grid gap-6">
-        <WeatherCard />
-        <div>Log ind for at se dine opgaver og varsler.</div>
-      </div>
-    )
-  }
+  if (loading) return <div className="opacity-60 p-4">Indlæser dashboard…</div>
 
   return (
     <div className="grid gap-6">
-      {/* Vejr-kortet */}
+      {/* Vejr */}
       <WeatherCard />
-      <WaterAdvisor />  {/* ← NY */}  
-      <AutoWaterSummary /> {/* NY */}
-      <WeatherHistoryChart /> {/* NY */}
-      <WeatherHistory /> {/* NY */}
-      
+
+      {/* Vandingsoversigt */}
+      <section>
+        <h2 className="text-xl font-semibold mb-2">Vandingsoversigt</h2>
+        <AutoWaterSummary />
+      </section>
+
+      {/* Vandingsrådgivning */}
+      <section>
+        <h2 className="text-xl font-semibold mb-2">Vandingsrådgivning</h2>
+        <WaterAdvisor />
+      </section>
+
+      {/* Vejrhistorik */}
+      <section>
+        <h2 className="text-xl font-semibold mb-2">Vejrhistorik (7 dage)</h2>
+        <WeatherHistory />
+      </section>
 
       {/* Opgaver */}
       <section>
-        <h2 className="text-xl font-semibold mb-2">Kommende opgaver</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-semibold">Kommende opgaver</h2>
+          <span className="text-xs opacity-60">
+            {todaysInspections} inspektionsopgave{todaysInspections === 1 ? '' : 'r'} i dag
+          </span>
+        </div>
         <ul className="space-y-2">
-          {tasks.map((t) => (
-            <li key={t.id} className="p-3 rounded-lg bg-white shadow">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-0.5 rounded ${taskPill(t.type)}`}>
-                        {t.type}
+          {tasks.map((t) => {
+            const isInspection = t.notes?.startsWith('Inspektion:')
+            return (
+              <li key={t.id} className="p-3 rounded-lg bg-white shadow">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${taskPill(t.type)}`}>
+                      {t.type}
+                    </span>
+                    {isInspection && (
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-pink-100 text-pink-800">
+                        🔍 Inspektion
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${statusPill(t.status)}`}>
-                        {t.status}
+                    )}
+                    {t.status !== 'pending' && (
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                        {t.status === 'done' ? '✓ Udført' : '↷ Skippet'}
                       </span>
-                    </div>
+                    )}
+                  </div>
+
+                  {/* Hurtighandlinger + dato */}
+                  <div className="flex items-center gap-2">
+                    {t.status === 'pending' ? (
+                      <>
+                        <button
+                          onClick={() => setTaskStatus(t.id, 'done')}
+                          className="text-xs px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                          title="Markér som udført"
+                        >
+                          ✓ Udført
+                        </button>
+                        <button
+                          onClick={() => setTaskStatus(t.id, 'skipped')}
+                          className="text-xs px-2 py-1 rounded bg-slate-200 text-slate-800 hover:bg-slate-300"
+                          title="Markér som skippet"
+                        >
+                          ↷ Skip
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => undoTaskStatus(t.id)}
+                        className="text-xs px-2 py-1 rounded border hover:bg-slate-50"
+                        title="Fortryd (tilbage til afventer)"
+                      >
+                        Fortryd
+                      </button>
+                    )}
                     <span className="text-sm opacity-70">{t.due_date}</span>
                   </div>
-                  {t.notes && <p className="text-sm mt-1 opacity-80">{t.notes}</p>}
                 </div>
 
-                <div className="flex flex-col gap-2 min-w-[180px] items-end">
-                  <button
-                    onClick={() => markDone(t)}
-                    disabled={updatingId === t.id}
-                    className="px-3 py-2 rounded bg-slate-900 text-white text-xs"
-                  >
-                    {updatingId === t.id ? 'Opdaterer…' : 'Udført'}
-                  </button>
-                  <button
-                    onClick={() => markSkipped(t)}
-                    disabled={updatingId === t.id}
-                    className="px-3 py-2 rounded border border-slate-300 text-slate-900 text-xs hover:bg-slate-50"
-                  >
-                    Spring over
-                  </button>
-                </div>
-              </div>
-            </li>
-          ))}
+                {t.notes && <p className="text-sm mt-1 opacity-80">{t.notes}</p>}
+              </li>
+            )
+          })}
           {!tasks.length && <p className="text-sm opacity-70">Ingen opgaver endnu.</p>}
         </ul>
       </section>
@@ -238,37 +316,64 @@ export default function Dashboard() {
       <section>
         <h2 className="text-xl font-semibold mb-2">Varsler</h2>
         <ul className="space-y-2">
-          {alerts.map((a) => (
-            <li key={a.id} className="p-3 rounded-lg bg-white shadow">
-              <div className="flex items-center justify-between">
-                <span className={`text-xs px-2 py-0.5 rounded ${alertPill(a.type)}`}>
-                  {a.type}
-                </span>
-                <span className="text-sm opacity-70">
-                  {new Date(a.created_at).toLocaleString('da-DK')}
-                </span>
-              </div>
-              <p className="text-sm mt-1">{a.message}</p>
-            </li>
-          ))}
+          {alerts.map((a) => {
+            const { cls, label, icon } = alertBadge(a)
+            const sev = a.severity ?? 0
+            return (
+              <li key={a.id} className="p-3 rounded-lg bg-white shadow">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${cls}`}>
+                      {icon} {label}
+                    </span>
+                    {sev > 0 && (
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700"
+                        title={`Alvorlighed ${sev}/5`}
+                      >
+                        Alvor: {sev}/5
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs opacity-60">
+                    {new Date(a.created_at).toLocaleString('da-DK')}
+                  </span>
+                </div>
+
+                {a.message && <p className="text-sm mt-1">{a.message}</p>}
+
+                <div className="flex items-center gap-2 mt-2">
+                  {a.valid_to && (
+                    <p className="text-xs opacity-60">
+                      Gælder til: {new Date(a.valid_to).toLocaleString('da-DK')}
+                    </p>
+                  )}
+
+                  {a.type !== 'frost' && a.hazard_id && (
+                    <>
+                      <Link
+                        href={`/hazards/${a.hazard_id}`}
+                        className="text-xs px-2 py-1 rounded border"
+                        title="Se detaljer og vejledning"
+                      >
+                        Se detaljer →
+                      </Link>
+                      <button
+                        onClick={() => createInspectionFromAlert(a)}
+                        className="ml-auto text-xs px-2 py-1 rounded bg-slate-900 text-white"
+                        title="Opret inspektionsopgaver for berørte afgrøder i dag"
+                      >
+                        🔍 Opret inspektion nu
+                      </button>
+                    </>
+                  )}
+                </div>
+              </li>
+            )
+          })}
           {!alerts.length && <p className="text-sm opacity-70">Ingen varsler endnu.</p>}
         </ul>
       </section>
-
-      {/* ------ UNDO TOAST ------ */}
-      {undoOpen && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg bg-slate-900 text-white">
-            <span className="text-sm">{undoLabel}</span>
-            <button
-              onClick={undoLast}
-              className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20"
-            >
-              Fortryd
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

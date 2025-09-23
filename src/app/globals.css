@@ -26,3 +26,6 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Sørg for at kortet ikke overlayer UI-paneler */
+.leaflet-container { z-index: 0; }
+.custom-cluster, .custom-pin { z-index: 10; }
