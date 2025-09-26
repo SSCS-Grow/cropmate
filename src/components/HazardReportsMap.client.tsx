@@ -845,7 +845,7 @@ export default function HazardReportsMapClient({ hazardId }: { hazardId: string 
             scrollWheelZoom
             style={{ width: '100%', height: '100%' }}
             className="z-0"
-            whenCreated={(map) => { mapRef.current = map }}
+            whenReady={(event: any) => { mapRef.current = (event as any).target }}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
             <Circle center={center} radius={5000} />
