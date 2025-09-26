@@ -1,4 +1,0 @@
-001_schema_core.sql (profiles, crops, user_crops, tasks, logs, alerts + RLS) 
-010_seed_crops.sql (de 100 afgrøder – dine seneste inserts) 020_hazard_reports.sql (tabellen hazard_reports med status/flag/hidden + policies) 
-021_storage_hazard_photos.sql (bucket hazard-photos + storage policies) 
-030_indexes_constraints.sql (fx unikt index på tasks m.m.)
