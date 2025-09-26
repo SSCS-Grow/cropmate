@@ -112,32 +112,57 @@ export default function HazardTags({ hazardId }: { hazardId: string }) {
   const [selDiseases, setSelDiseases] = useState<Option[]>([]);
   const [isPending, startTransition] = useTransition();
 
+  // ---- ENV GUARD (vigtigt for at undgå “evig indlæser”) ----
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!base || !apikey) {
+    return (
+      <div className="text-sm text-red-600">
+        Mangler miljøvariabler:
+        {!base ? " NEXT_PUBLIC_SUPABASE_URL" : ""}
+        {!apikey ? " NEXT_PUBLIC_SUPABASE_ANON_KEY" : ""}
+      </div>
+    );
+  }
+  const headers = { apikey };
+
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-      const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-      const headers = { apikey };
-
       const q = (path: string) =>
-        fetch(`${base}/rest/v1/${path}`, { headers }).then((r) => r.json());
+        fetch(`${base}/rest/v1/${path}`, { headers }).then((r) => {
+          if (!r.ok) throw new Error(`REST ${r.status} ${r.statusText}`);
+          return r.json();
+        });
 
-      const [allPests, allDiseases, hrPests, hrDiseases] = await Promise.all([
-        q(`pests?select=id,slug,name_da`),
-        q(`diseases?select=id,slug,name_da`),
-        q(
-          `hazard_report_pests?hazard_id=eq.${hazardId}&select=pest_id,pests(id,slug,name_da)`
-        ),
-        q(
-          `hazard_report_diseases?hazard_id=eq.${hazardId}&select=disease_id,diseases(id,slug,name_da)`
-        ),
-      ]);
+      try {
+        const [allPests, allDiseases, hrPests, hrDiseases] = await Promise.all([
+          q(`pests?select=id,slug,name_da`),
+          q(`diseases?select=id,slug,name_da`),
+          q(
+            `hazard_report_pests?hazard_id=eq.${hazardId}&select=pest_id,pests(id,slug,name_da)`
+          ),
+          q(
+            `hazard_report_diseases?hazard_id=eq.${hazardId}&select=disease_id,diseases(id,slug,name_da)`
+          ),
+        ]);
 
-      setPests(allPests ?? []);
-      setDiseases(allDiseases ?? []);
-      setSelPests((hrPests ?? []).map((r: any) => r.pests));
-      setSelDiseases((hrDiseases ?? []).map((r: any) => r.diseases));
+        if (!cancelled) {
+          setPests(allPests ?? []);
+          setDiseases(allDiseases ?? []);
+          setSelPests((hrPests ?? []).map((r: any) => r.pests));
+          setSelDiseases((hrDiseases ?? []).map((r: any) => r.diseases));
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error("HazardTags load error:", e);
+        }
+      }
     })();
-  }, [hazardId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [base, headers, hazardId]);
 
   function addPest(id: string) {
     const opt = pests.find((p) => p.id === id);
