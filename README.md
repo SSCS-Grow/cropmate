@@ -36,3 +36,49 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # cropmate
 # cropmate
+
+
+# 🌱 CropMate (MVP)
+
+Et open-source værktøj til haveejere og dyrkere, der kombinerer **vejrintegration, opgaver, kort og observationer** – bygget med Next.js + Supabase.
+
+---
+
+## 🚀 Features
+- **Dashboard**: vejr (timeout-sikret), opgaver & alerts
+- **Katalog**: crops + detaljer
+- **Min have**: personlig samling
+- **Hazard-kort**: clustering, heatmap, drop nål, foto-upload, CSV-eksport, “min placering”, “følg mig”
+- **Moderation**: flag/skjul, admin-panel, global moderation side
+- **Cron jobs**: frost-check + vanding (ET₀)
+
+---
+
+## 📂 Repo struktur
+- `/src/` → Next.js app
+- `/db/sql/` → database schema, policies, seeds, indexes
+- `/docs/` → setup, arkitektur, roadmap
+- `.env.example` → miljøvariabler (uden hemmeligheder)
+
+---
+
+## 📖 Dokumentation
+- [SETUP.md](docs/SETUP.md) – opsætning & deploy
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) – arkitektur & nøglefiler
+- [ROADMAP.md](docs/ROADMAP.md) – næste skridt
+
+---
+
+## 🛠️ Tech stack
+- Next.js 15 (App Router) + TypeScript
+- Tailwind CSS
+- Supabase (Auth, DB, Storage)
+- Vercel (hosting & cron jobs)
+
+---
+
+## 🔑 Miljøvariabler
+```bash
+NEXT_PUBLIC_APP_NAME=CropMate
+NEXT_PUBLIC_SUPABASE_URL=YOUR_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_KEY
