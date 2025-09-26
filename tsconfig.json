@@ -17,9 +17,19 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "baseUrl": "src",
-    "paths": { "@/*": ["*"] }
+    "paths": {
+      "@/*": [
+        "*"
+      ]
     },
     "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "incremental": true,
   "plugins": [
     {
       "name": "next"

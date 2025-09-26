@@ -1,10 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-/**
- * Server helper til Server Components (SSR) og Actions.
- * Next 15 kræver at cookies() await'es.
- */
 export async function getSupabaseServer() {
   const cookieStore = await cookies();
   return createServerClient(
@@ -26,9 +22,6 @@ export async function getSupabaseServer() {
   );
 }
 
-/**
- * Brug i Route Handlers (kan skrive cookies under auth callback).
- */
 export async function getSupabaseRoute() {
   const cookieStore = await cookies();
   return createServerClient(
