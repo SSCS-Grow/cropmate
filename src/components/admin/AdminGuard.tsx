@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
-// Update the import path if the alias '@' is not configured, or fix tsconfig.json
-import { getUserAndAdmin } from "../../lib/supabase/server";
+import { getUserAndAdmin } from "@/lib/supabase/server";
 
 export default async function AdminGuard({
   children,

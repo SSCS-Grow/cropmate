@@ -1,16 +1,14 @@
-// src/app/hazards/[id]/page.tsx
 import Link from "next/link";
 import HazardTags from "@/components/hazards/HazardTags";
 import { getSupabaseServer } from "@/lib/supabase/server";
-// Hvis du har et kort-komponent, kan du importere det her:
-// import HazardReportsMap from "@/components/HazardReportsMap";
+// import HazardReportsMap from "@/components/HazardReportsMap"; // hvis du har den
 
 export default async function HazardDetail({
   params,
 }: {
   params: { id: string };
 }) {
-  const supabase = getSupabaseServer();
+  const supabase = await getSupabaseServer();
 
   const { data: hazard, error } = await supabase
     .from("hazard_reports")
@@ -18,10 +16,8 @@ export default async function HazardDetail({
     .eq("id", params.id)
     .maybeSingle();
 
-  if (error) {
-    // Valgfrit: log til server – i prod kan du vise en pæn fejl
-    console.error("hazard_reports error:", error);
-  }
+  if (error) console.error("hazard_reports error:", error);
+
   if (!hazard) {
     return (
       <div className="max-w-3xl mx-auto p-6">
@@ -32,45 +28,30 @@ export default async function HazardDetail({
     );
   }
 
-  // Public storage URL til thumbnails/link
   const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/hazard-photos`;
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Observation</h1>
-        <Link href="/admin/moderation" className="underline text-sm">
-          Moderation
-        </Link>
+        <Link href="/admin/moderation" className="underline text-sm">Moderation</Link>
       </div>
 
-      {/* KORT — fjern kommentar hvis du har komponenten */}
-      {/* <HazardReportsMap
-        center={{ lat: hazard.lat, lon: hazard.lon }}
-        markers={[{ lat: hazard.lat, lon: hazard.lon }]}
-      /> */}
+      {/* <HazardReportsMap center={{ lat: hazard.lat, lon: hazard.lon }} /> */}
 
-      {/* Info + Fotos */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <div>
-            <span className="font-medium">Koordinater:</span>{" "}
+          <div><span className="font-medium">Koordinater:</span>{" "}
             {typeof hazard.lat === "number" && typeof hazard.lon === "number"
               ? `${hazard.lat.toFixed(5)}, ${hazard.lon.toFixed(5)}`
               : "—"}
           </div>
-          <div>
-            <span className="font-medium">Status:</span> {hazard.status}
-          </div>
+          <div><span className="font-medium">Status:</span> {hazard.status}</div>
           {hazard.severity != null && (
-            <div>
-              <span className="font-medium">Sværhedsgrad:</span>{" "}
-              {hazard.severity}/5
-            </div>
+            <div><span className="font-medium">Sværhedsgrad:</span> {hazard.severity}/5</div>
           )}
           {hazard.observed_at && (
-            <div>
-              <span className="font-medium">Observeret:</span>{" "}
+            <div><span className="font-medium">Observeret:</span>{" "}
               {new Date(hazard.observed_at).toLocaleString("da-DK")}
             </div>
           )}
@@ -86,18 +67,8 @@ export default async function HazardDetail({
           {Array.isArray(hazard.photo_paths) && hazard.photo_paths.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               {hazard.photo_paths.map((p: string) => (
-                <a
-                  key={p}
-                  href={`${storageBase}/${p}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block"
-                >
-                  <img
-                    src={`${storageBase}/${p}`}
-                    alt="Hazard photo"
-                    className="w-full h-32 object-cover rounded-xl border"
-                  />
+                <a key={p} href={`${storageBase}/${p}`} target="_blank" rel="noreferrer" className="block">
+                  <img src={`${storageBase}/${p}`} alt="Hazard photo" className="w-full h-32 object-cover rounded-xl border" />
                 </a>
               ))}
             </div>
@@ -107,7 +78,6 @@ export default async function HazardDetail({
         </div>
       </div>
 
-      {/* Tagging (Skadedyr & Sygdomme) */}
       <section className="pt-4 border-t">
         <h2 className="text-lg font-semibold mb-2">Skadedyr & sygdomme</h2>
         <HazardTags hazardId={params.id} />

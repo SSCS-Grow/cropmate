@@ -1,7 +1,7 @@
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export default async function DebugAuth() {
-  const supabase = getSupabaseServer();
+  const supabase = await getSupabaseServer();
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
 
   let profile: any = null;

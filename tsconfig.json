@@ -17,18 +17,14 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "baseUrl": "src",
-    "paths": {
-      "@/*": [
-        "*"
-      ]
+    "paths": { "@/*": ["*"] }
     },
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
-  },
+  "plugins": [
+    {
+      "name": "next"
+    }
+  ],
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",

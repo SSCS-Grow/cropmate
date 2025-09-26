@@ -41,7 +41,10 @@ function Section({
       .slice(0, 50);
   }, [q, options]);
 
-  const selectedIds = useMemo(() => new Set(selected.map((s) => s.id)), [selected]);
+  const selectedIds = useMemo(
+    () => new Set(selected.map((s) => s.id)),
+    [selected]
+  );
 
   return (
     <div>
@@ -57,7 +60,6 @@ function Section({
         {pending && <span className="text-sm text-gray-500">Opdaterer…</span>}
       </div>
 
-      {/* Resultater / valg */}
       <div className="grid md:grid-cols-2 gap-2 mb-3">
         {filtered.length === 0 ? (
           <div className="text-sm text-gray-500">Ingen match</div>
@@ -82,7 +84,6 @@ function Section({
         )}
       </div>
 
-      {/* Valgte tags */}
       <div className="flex flex-wrap gap-2">
         {selected.map((o) => (
           <span key={o.id} className="px-3 py-1 border rounded-2xl">

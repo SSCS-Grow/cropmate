@@ -4,7 +4,7 @@ import LibraryForm from "@/components/admin/LibraryForm";
 import { getSupabaseServer, getUserAndAdmin } from "@/lib/supabase/server";
 
 export default async function EditDisease({ params }: { params: { id: string } }) {
-  const supabase = getSupabaseServer();
+  const supabase = await getSupabaseServer();
   const { data } = await supabase.from("diseases")
     .select("id, slug, name_da, name_en, pathogen, description, symptoms, control")
     .eq("id", params.id).maybeSingle();
@@ -27,7 +27,7 @@ async function FormWrapper({ initial }: { initial: any }) {
     const { isAdmin } = await getUserAndAdmin();
     if (!isAdmin) throw new Error("Not admin");
 
-    const supabase = getSupabaseServer();
+    const supabase = await getSupabaseServer();
     const { error } = await supabase.from("diseases")
       .update({
         slug: vals.slug,

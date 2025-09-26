@@ -3,8 +3,6 @@ import AdminGuard from "@/components/admin/AdminGuard";
 import LibraryForm from "@/components/admin/LibraryForm";
 import { getSupabaseServer, getUserAndAdmin } from "@/lib/supabase/server";
 
-import React from "react";
-
 export default async function NewDisease() {
   return (
     <AdminGuard title="Ny Disease">
@@ -22,7 +20,7 @@ async function FormWrapper() {
     const { isAdmin } = await getUserAndAdmin();
     if (!isAdmin) throw new Error("Not admin");
 
-    const supabase = getSupabaseServer();
+    const supabase = await getSupabaseServer();
     const { error } = await supabase.from("diseases").insert({
       slug: vals.slug,
       name_da: vals.name_da,
