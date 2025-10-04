@@ -1,17 +1,44 @@
-import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+type ThreatRow = {
+  id: string;
+  slug: string | null;
+  name_common: string;
+  type: 'pest' | 'disease';
+  category:
+    | 'insect' | 'mite' | 'nematode' | 'weed'
+    | 'fungus' | 'bacteria' | 'virus' | 'physiological' | 'other';
+  updated_at: string;
+};
+
 export default async function AdminLibrary() {
   const supabase = createClient();
+
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
-  const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
-  if (!profile?.is_admin) redirect('/');
 
-  const { data } = await supabase.from('threats').select('id,slug,name_common,type,category,updated_at').order('updated_at', { ascending: false }).limit(200);
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single();
+  if (profileErr || !profile?.is_admin) redirect('/');
+
+  const { data, error } = await supabase
+    .from('threats')
+    .select('id,slug,name_common,type,category,updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    return <div className="p-4 text-red-600">Fejl: {error.message}</div>;
+  }
+
+  const rows = (data ?? []) as ThreatRow[];
 
   return (
     <div className="mx-auto max-w-5xl p-4 space-y-4">
@@ -32,12 +59,12 @@ export default async function AdminLibrary() {
             </tr>
           </thead>
           <tbody>
-            {(data ?? []).map(row => (
+            {rows.map((row: ThreatRow) => (
               <tr key={row.id} className="border-t">
                 <td className="p-2">{row.name_common}</td>
                 <td className="p-2">{row.type}</td>
                 <td className="p-2">{row.category}</td>
-                <td className="p-2">{new Date(row.updated_at!).toLocaleString()}</td>
+                <td className="p-2">{new Date(row.updated_at).toLocaleString()}</td>
                 <td className="p-2">
                   <div className="flex gap-2">
                     <Link className="text-blue-600 hover:underline" href={`/admin/library/${row.id}`}>Redigér</Link>
@@ -46,7 +73,7 @@ export default async function AdminLibrary() {
                 </td>
               </tr>
             ))}
-            {(!data || data.length === 0) && (
+            {rows.length === 0 && (
               <tr><td className="p-2 text-gray-500" colSpan={5}>Ingen poster endnu.</td></tr>
             )}
           </tbody>
