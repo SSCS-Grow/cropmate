@@ -1,8 +1,10 @@
-import { cookies } from "next/headers";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+// lib/supabase/server.ts
+import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-export async function getSupabaseServer() {
+export async function createClient() {
   const cookieStore = await cookies();
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -11,48 +13,11 @@ export async function getSupabaseServer() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set(name, value, options);
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set(name, "", { ...options, maxAge: 0 });
-        },
+        // I RSC må vi ikke skrive cookies. No-ops undgår "read-only" fejl.
+        set(_name: string, _value: string, _options: CookieOptions) {},
+        remove(_name: string, _options: CookieOptions) {},
       },
     }
   );
 }
-
-export async function getSupabaseRoute() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set(name, value, options);
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set(name, "", { ...options, maxAge: 0 });
-        },
-      },
-    }
-  );
-}
-
-export async function getUserAndAdmin() {
-  const supabase = await getSupabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { user: null, isAdmin: false };
-
-  const { data: prof } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  return { user, isAdmin: !!prof?.is_admin };
-}
+// src/app/library/[id]/page.tsx

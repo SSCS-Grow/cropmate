@@ -8,7 +8,7 @@ export async function listThreats(opts?: {
   cropId?: string;
   limit?: number;
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   let q = supabase.from('threats').select('*, threat_images(*), threat_symptoms(*), threat_crops(crop_id, crops(name))', { count: 'exact' }).order('name_common');
 
   if (opts?.type) q = q.eq('type', opts.type);
@@ -35,7 +35,7 @@ export async function listThreats(opts?: {
 }
 
 export async function getThreatById(idOrSlug: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('threats')
     .select('*, threat_images(*), threat_symptoms(*), threat_crops(crop_id, crops(name))')

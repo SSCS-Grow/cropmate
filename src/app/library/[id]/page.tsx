@@ -116,7 +116,7 @@ function Markdown({ children }: { children: string }) {
 
 async function RelatedReports({ threatId }: { threatId: string }) {
   const { createClient } = await import('@/lib/supabase/server');
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('hazard_reports')
     .select('id, created_at, status, latitude, longitude, photo_url')
@@ -135,11 +135,20 @@ async function RelatedReports({ threatId }: { threatId: string }) {
     );
   }
 
+  type HazardReport = {
+    id: string;
+    created_at: string;
+    status: string;
+    latitude: number | null;
+    longitude: number | null;
+    photo_url: string | null;
+  };
+
   return (
     <div className="border rounded-lg p-3">
       <div className="text-sm font-medium mb-2">Seneste observationer</div>
       <ul className="space-y-2">
-        {data.map(r => (
+        {data.map((r: HazardReport) => (
           <li key={r.id} className="flex items-center gap-3">
             {r.photo_url ? (
               // eslint-disable-next-line @next/next/no-img-element

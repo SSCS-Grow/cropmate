@@ -20,6 +20,10 @@ export default function ThreatCard({ threat }: { threat: ThreatWithJoins }) {
           <div className="font-medium">{threat.name_common}</div>
           {threat.name_latin && <div className="text-sm italic text-gray-600">{threat.name_latin}</div>}
           {threat.summary && <p className="text-sm text-gray-700 line-clamp-2">{threat.summary}</p>}
+          <div className="flex gap-3 text-xs text-gray-500 pt-1">
+            <span>{threat.images?.length ?? 0} billeder</span>
+            <span>{threat.symptoms?.length ?? 0} symptomer</span>
+          </div>
         </div>
       </div>
     </Link>
