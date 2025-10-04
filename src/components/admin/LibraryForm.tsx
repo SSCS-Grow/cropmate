@@ -10,6 +10,8 @@ type Base = {
   description?: string;
   symptoms?: string;
   control?: string;
+  category?: string;
+  pathogen?: string;
 };
 
 export default function LibraryForm({
@@ -19,11 +21,11 @@ export default function LibraryForm({
   submittingLabel = "Gemmer...",
 }: {
   type: "pest" | "disease";
-  initial?: Base & { category?: string; pathogen?: string };
-  onSubmit: (vals: any) => Promise<void>;
+  initial?: Base;
+  onSubmit: (vals: Base) => Promise<void>;
   submittingLabel?: string;
 }) {
-  const [vals, setVals] = useState<any>({
+  const [vals, setVals] = useState<Base>({
     slug: initial?.slug ?? "",
     name_da: initial?.name_da ?? "",
     name_en: initial?.name_en ?? "",

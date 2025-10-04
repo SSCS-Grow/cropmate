@@ -845,7 +845,13 @@ export default function HazardReportsMapClient({ hazardId }: { hazardId: string 
             scrollWheelZoom
             style={{ width: '100%', height: '100%' }}
             className="z-0"
-            whenCreated={(map) => { mapRef.current = map }}
+            whenReady={() => {
+              if (mapRef.current == null && document.querySelector('.leaflet-container')) {
+                // Get the Leaflet map instance from the DOM
+                const leafletMap = (window as any).L?.map?.instances?.[0] || null;
+                if (leafletMap) mapRef.current = leafletMap;
+              }
+            }}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
             <Circle center={center} radius={5000} />
