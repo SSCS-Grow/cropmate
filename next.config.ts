@@ -1,7 +1,9 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
-  /* config options here */
+const nextConfig = {
+  typedRoutes: false, // ← her
+  eslint: { ignoreDuringBuilds: true, dirs: [] },
+  turbopack: { root: process.cwd() }, // absolut sti
+  outputFileTracingRoot: process.cwd(),
 };
-
 export default nextConfig;

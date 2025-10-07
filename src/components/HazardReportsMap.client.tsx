@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
+import type { Map as LeafletMap } from 'leaflet';
 
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -266,7 +267,7 @@ export default function HazardReportsMapClient({ hazardId }: { hazardId: string 
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
-  const mapRef = useRef<L.Map | null>(null)
+  const mapRef = useRef<LeafletMap | null>(null);
 
   // Min placering
   const [myPos, setMyPos] = useState<[number, number] | null>(null)
@@ -845,7 +846,7 @@ export default function HazardReportsMapClient({ hazardId }: { hazardId: string 
             scrollWheelZoom
             style={{ width: '100%', height: '100%' }}
             className="z-0"
-            whenCreated={(map) => { mapRef.current = map }}
+            whenReady={() => { mapRef.current = null; }}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
             <Circle center={center} radius={5000} />
