@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import AdminGuard from "@/components/admin/AdminGuard";
 import LibraryForm from "@/components/admin/LibraryForm";
-import { getSupabaseServer, getUserAndAdmin } from "@/lib/supabase/server";
+import { getSupabaseServer, getUserAndAdmin } from "@/utils/supabase/server";
 
 export default async function EditPest({ params }: { params: { id: string } }) {
   const supabase = getSupabaseServer();

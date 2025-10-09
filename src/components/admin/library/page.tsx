@@ -1,7 +1,7 @@
 import Link from "next/link";
 // Update the import path below to the correct relative path if needed
 import AdminGuard from "../AdminGuard";
-import { getSupabaseServer } from "../../../lib/supabase/server";
+import { getSupabaseServer } from "@/utils/supabase/server";
 
 export default async function Page() {
   const supabase = getSupabaseServer();

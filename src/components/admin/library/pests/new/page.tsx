@@ -3,7 +3,7 @@ import React from "react";
 
 import AdminGuard from "@/components/admin/AdminGuard";
 import LibraryForm from "@/components/admin/LibraryForm";
-import { getSupabaseServer, getUserAndAdmin } from "@/lib/supabase/server";
+import { getSupabaseServer, getUserAndAdmin } from "@/utils/supabase/server";
 
 export default async function NewPest() {
   async function createPest(form: FormData) {} // avoids "use server" in parent
