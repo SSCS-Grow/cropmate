@@ -1,14 +1,7 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/frost",
-      "schedule": "0 6 * * *",
-      "timezone": "Europe/Copenhagen"
-    },
-    {
-      "path": "/api/cron/water",
-      "schedule": "0 8 * * *",
-      "timezone": "Europe/Copenhagen"
-    }
+    { "path": "/api/cron/frost",  "schedule": "0 5 * * *" },
+    { "path": "/api/cron/water",  "schedule": "0 6 * * *" },
+    { "path": "/api/cron/health", "schedule": "0 5 * * *" }
   ]
 }
