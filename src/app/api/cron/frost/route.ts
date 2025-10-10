@@ -76,18 +76,27 @@ export async function GET() {
           : `Min. temperatur næste 48t: ${minTemp}°C. Beskyt sarte planter.`;
 
       for (const s of subRows) {
-        const res = await sendPushToEndpoint(
-          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          { title, body, url: '/dashboard?alert=frost', tag: 'frost' }
-        );
-        if (!res.ok) {
-          await supabase.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
-        } else {
-          sent++;
+        try {
+          await sendPushToEndpoint(
+            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+            { title, body, url: "/dashboard?alert=frost", tag: "frost" }
+          );
+          sent++; // kom hertil = succes (2xx)
+        } catch (err: any) {
+          const code = err?.statusCode ?? err?.status ?? 0;
+          // 404/410 = endpoint findes ikke længere -> slet subscription
+          if (code === 404 || code === 410) {
+            await supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("endpoint", s.endpoint);
+          } else {
+            // andre fejl: log og fortsæt
+            console.error("push error:", code, err?.body || err?.message || err);
+          }
         }
       }
     }
-
     return NextResponse.json({ ok: true, sent, skipped, debug });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

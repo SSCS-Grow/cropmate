@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const parsed = PestSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const slug = toSlug(parsed.data.name);
 
   const { data, error } = await supabase
