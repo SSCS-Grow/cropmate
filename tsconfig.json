@@ -3,7 +3,6 @@
     "target": "ES2022",
     "lib": [
       "dom",
-      "dom.iterable",
       "es2022"
     ],
     "strict": true,
@@ -27,6 +26,7 @@
       }
     ],
     "skipLibCheck": true,
+    "noImplicitAny": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -38,7 +38,5 @@
     "src/**/*.ts",
     "src/**/*.tsx"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules", ".next"]
 }

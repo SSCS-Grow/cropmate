@@ -1,20 +1,31 @@
-import { supabaseServer } from "@/lib/supabase/server";
-import { sendPush } from "@/lib/push";
+import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/lib/supabase/serverAdmin';
+import { sendPush } from '@/lib/push/send';
 
-export async function POST() {
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
+type SubscriptionRow = { endpoint: string; p256dh: string; auth: string };
 
-  const { data: subs } = await supabase.from("push_subscriptions")
-    .select("*").eq("user_id", user.id).limit(10);
+export const dynamic = 'force-dynamic';
 
-  await Promise.all(
-    (subs||[]).map(s => sendPush({
-      endpoint: s.endpoint,
-      keys: { p256dh: s.p256dh, auth: s.auth },
-    }, { title: "CropMate test", body: "Push virker ✅", url: "/"}).catch(()=>null))
-  );
+export async function GET() {
+  const supabase = createServiceClient();
 
-  return Response.json({ ok: true, count: subs?.length || 0 });
+  const { data, error } = await (supabase as any)
+    .from('push_subscriptions')
+    .select('endpoint,p256dh,auth')
+    .limit(25);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  const subs = (data ?? []) as SubscriptionRow[];
+
+  let sent = 0;
+  for (const s of subs) {
+    try {
+      await sendPush({ title: 'CropMate test', body: s.endpoint.slice(0, 32) + '…' }, s);
+      sent++;
+    } catch (e) {
+      // Ignorer fejl for enkelt-subscriptions
+    }
+  }
+
+  return NextResponse.json({ ok: true, sent });
 }

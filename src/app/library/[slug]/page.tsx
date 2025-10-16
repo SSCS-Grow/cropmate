@@ -1,23 +1,61 @@
-import { supabaseServer } from "@/lib/supabase/server";
+import { createClient } from '@/lib/supabase/server';
 
-export const dynamic = "force-dynamic";
+// 💡 Minimal type til netop den SELECT du laver på siden
+type PestImageRow = { id: string; url: string; caption?: string | null };
+type PestRow = {
+  id: string;
+  slug: string;
+  category: 'pest' | 'disease';
+  name: string;
+  latin_name?: string | null;
+  description?: string | null;
+  pest_images?: PestImageRow[]; // relation hvis du laver select('*, pest_images(*)')
+};
 
-export default async function PestDetail({ params }: { params: { slug: string } }) {
-  const supabase = await supabaseServer();
-  const { data } = await supabase.from("pests").select("*, pest_images(*)").eq("slug", params.slug).single();
+export default async function LibraryDetailPage({ params }: { params: { slug: string } }) {
+  const supabase = createClient();
 
-  if (!data) return <div className="p-6">Ikke fundet</div>;
+  // 👇 slå generics fra omkring .from(...) og cast data bagefter
+  const { data, error } = await (supabase as any)
+    .from('pests')
+    .select('*, pest_images(*)')
+    .eq('slug', params.slug)
+    .single();
+
+  if (error) {
+    return <div className="p-4">Kunne ikke hente: {error.message}</div>;
+  }
+
+  const pest = (data ?? null) as PestRow | null;
+  if (!pest) {
+    return <div className="p-4">Ikke fundet.</div>;
+  }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="text-sm uppercase opacity-60">{data.category === "pest" ? "Skadedyr" : "Sygdom"}</div>
-      <h1 className="text-3xl font-bold">{data.name}</h1>
-      {data.latin_name && <div className="italic opacity-75">{data.latin_name}</div>}
-      <div className="mt-4 prose max-w-none">{data.description}</div>
-      {Array.isArray(data.pest_images) && data.pest_images.length > 0 && (
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-3">
-          {data.pest_images.map((img: any) => (
-            <img key={img.id} src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pests/${img.path}`} alt={img.alt || data.name} className="rounded-xl"/>
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <div className="text-xs uppercase tracking-wide text-gray-500">{pest.category}</div>
+      <h1 className="text-2xl font-bold">{pest.name}</h1>
+
+      {pest.latin_name && (
+        <div className="text-gray-600 italic">
+          {pest.latin_name}
+        </div>
+      )}
+
+      {pest.description && (
+        <p className="text-gray-800">
+          {pest.description}
+        </p>
+      )}
+
+      {!!(pest.pest_images?.length) && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {pest.pest_images!.map((img) => (
+            <figure key={img.id} className="rounded-xl overflow-hidden border bg-white">
+              {/* antag at url allerede er public; ellers brug getPublicUrl logic */}
+              <img src={img.url} alt={img.caption ?? pest.name} className="w-full h-40 object-cover" />
+              {img.caption && <figcaption className="text-xs p-2 text-gray-600">{img.caption}</figcaption>}
+            </figure>
           ))}
         </div>
       )}

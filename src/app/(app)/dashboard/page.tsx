@@ -3,11 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import supabaseBrowser from '@/lib/supabaseBrowser'
-import PushCta from "@/components/settings/PushCta";  
-import ServiceWorkerReady from "@/components/system/ServiceWorkerReady";
-
-
+import { createClient } from '@/lib/supabase/client' // erstatter supabaseBrowser
+import PushCta from '@/components/settings/PushCta'
+import ServiceWorkerReady from '@/components/system/ServiceWorkerReady'
 
 // Vejrkortet
 const WeatherCard = dynamic(
@@ -61,6 +59,7 @@ const WeatherHistory = dynamic(
   }
 )
 
+// Types
 type TaskType =
   | 'sow'
   | 'transplant'
@@ -69,6 +68,7 @@ type TaskType =
   | 'water'
   | 'harvest'
   | 'other'
+
 type TaskStatus = 'pending' | 'done' | 'skipped'
 
 type TaskRow = {
@@ -95,15 +95,11 @@ type AlertRow = {
   hazard_id?: string | null
 }
 
-export default function Dashboard() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+export default function DashboardClient() {
+  const supabase = useMemo(() => createClient(), [])
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [alerts, setAlerts] = useState<AlertRow[]>([])
   const [loading, setLoading] = useState(true)
-  {/* Sørger for at service worker er registreret i browseren */}
-<ServiceWorkerReady />
-{/* Sektion: Push-notifikationer */}
-<PushCta />
 
   useEffect(() => {
     let alive = true
@@ -113,8 +109,8 @@ export default function Dashboard() {
       if (!session.session) { setLoading(false); return }
 
       const [{ data: t }, { data: a }] = await Promise.all([
-        supabase.from('tasks').select('*').order('due_date', { ascending: true }).limit(20),
-        supabase.from('alerts').select('*').order('created_at', { ascending: false }).limit(10),
+        (supabase as any).from('tasks').select('*').order('due_date', { ascending: true }).limit(20),
+        (supabase as any).from('alerts').select('*').order('created_at', { ascending: false }).limit(10),
       ])
 
       if (!alive) return
@@ -156,7 +152,7 @@ export default function Dashboard() {
   async function setTaskStatus(id: string, newStatus: TaskStatus) {
     const prev = [...tasks]
     setTasks(prev.map(t => t.id === id ? { ...t, status: newStatus } : t))
-    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', id)
+    const { error } = await (supabase as any).from('tasks').update({ status: newStatus }).eq('id', id)
     if (error) {
       setTasks(prev) // rollback
       alert('Kunne ikke opdatere opgaven – prøv igen.')
@@ -183,10 +179,10 @@ export default function Dashboard() {
       const uid = session.session?.user.id
       if (!uid) { alert('Log ind først.'); return }
 
-      const { data: uc } = await supabase.from('user_crops').select('crop_id').eq('user_id', uid)
+      const { data: uc } = await (supabase as any).from('user_crops').select('crop_id').eq('user_id', uid)
       const mySet = new Set<string>((uc || []).map((r: { crop_id: string }) => r.crop_id))
 
-      const { data: hosts } = await supabase
+      const { data: hosts } = await (supabase as any)
         .from('hazard_hosts')
         .select('crop_id')
         .eq('hazard_id', a.hazard_id)
@@ -208,7 +204,7 @@ export default function Dashboard() {
         notes: `Inspektion: ${a.message?.split(':')[0] || 'Trussel'}`,
       }))
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('tasks')
         .upsert(rows, { onConflict: 'user_id,crop_id,type,due_date', ignoreDuplicates: true })
 
@@ -216,7 +212,7 @@ export default function Dashboard() {
         alert('Kunne ikke oprette opgaver (eller de findes allerede). Tjek dashboard.')
       } else {
         alert(`Oprettet ${rows.length} inspektionsopgave(r) i dag.`)
-        const { data: t } = await supabase
+        const { data: t } = await (supabase as any)
           .from('tasks').select('*').order('due_date', { ascending: true }).limit(20)
         setTasks((t || []) as TaskRow[])
       }
@@ -229,14 +225,12 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* SW & Push CTA i toppen */}
       <ServiceWorkerReady />
+      <PushCta />
 
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
-      {/* DIT EKSISTERENDE DASHBOARD-INDHOLD HER ... */}
-
-      {/* Du kan vise PushCta her eller i toppen — begge dele er fine */}
-      <PushCta />
       <div className="grid gap-6">
         {/* Vejr */}
         <WeatherCard />

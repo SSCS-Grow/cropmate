@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!user) return Response.json({ error: "Not authenticated" }, { status: 401 });
 
   // Upsert på endpoint, så duplicate ikke fejler
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("push_subscriptions")
     .upsert(
       { user_id: user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth },

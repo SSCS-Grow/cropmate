@@ -28,6 +28,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link className="underline" href="/crops">Katalog</Link>
               <Link className="underline" href="/hazards">Skadedyr</Link>
               <Link className="underline" href="/my">Min have</Link>
+              <Link className="underline" href="/alerts">Alerts</Link>
+              <Link className="underline" href="/scout">Scouting</Link>
+              <Link className="underline" href="/calendar">Kalender</Link>
+              <Link className="underline" href="/library">Bibliotek</Link>
               <Link className="underline inline-flex items-center" href="/tasks">
                 Opgaver
                 <NavTasksBadge /> {/* ← badge her */}

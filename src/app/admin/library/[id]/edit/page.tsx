@@ -3,8 +3,11 @@ import PestForm from "@/components/library/PestForm";
 import ImageUploader from "@/components/library/ImageUploader";
 
 export default async function EditPest({ params }: { params: { id: string } }) {
-  const supabase = await supabaseServer();
-  const { data } = await supabase.from("pests").select("*, pest_images(*)").eq("id", params.id).single();
+  const supabase = await supabaseServer;
+  const { data } = await (supabase as any)
+  .from('pests')
+  .select('*')
+  .order('updated_at', { ascending: false });
 
   if (!data) return <div className="p-6">Ikke fundet</div>;
 

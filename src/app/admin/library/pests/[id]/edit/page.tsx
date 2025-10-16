@@ -2,16 +2,13 @@
 import { useEffect, useState } from 'react';
 
 
-// Genbrug samme form som pests – kategorien er blot 'disease'
-
-
 type PestRow = {
 id: string; slug: string; category: 'pest'|'disease'; name: string;
 latin_name?: string|null; description?: string|null; host_plants?: string[]; severity?: number;
 };
 
 
-export default function AdminEditDisease({ params }: { params: { id: string } }) {
+export default function AdminEditPest({ params }: { params: { id: string } }) {
 const [row, setRow] = useState<PestRow | null>(null);
 const [msg, setMsg] = useState<string|undefined>();
 const [saving, setSaving] = useState(false);
@@ -37,7 +34,6 @@ latin_name: String(fd.get('latin_name')||'') || null,
 description: String(fd.get('description')||'') || null,
 host_plants: String(fd.get('host_plants')||'').split(',').map(s=>s.trim()).filter(Boolean),
 severity: Number(fd.get('severity')||0),
-category: 'disease' as const,
 };
 const res = await fetch(`/api/library/${params.id}`, { method: 'PUT', body: JSON.stringify(patch) });
 const json = await res.json();
@@ -51,7 +47,7 @@ if (!row) return <div className="p-4">Henter…</div>;
 
 return (
 <div className="max-w-3xl mx-auto p-4 space-y-4">
-<h1 className="text-2xl font-bold">Redigér (disease)</h1>
+<h1 className="text-2xl font-bold">Redigér (pest)</h1>
 <form onSubmit={onSubmit} className="space-y-3">
 <div className="grid md:grid-cols-2 gap-3">
 <input name="slug" defaultValue={row.slug} className="p-2 rounded border" required />
