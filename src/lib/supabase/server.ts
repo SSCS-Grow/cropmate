@@ -1,17 +1,28 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-let cached: ReturnType<typeof createSupabaseClient> | null = null;
+/**
+ * Next.js 15: cookies() er async, så vi gør helperen async og
+ * lukker over en synkron cookieStore (ReadonlyRequestCookies).
+ */
+export async function createSupabaseServer() {
+  const cookieStore = await cookies(); // <-- vigtig ændring
 
-export function createClient() {
-  if (cached) return cached;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  if (!url || !anon) throw new Error('Supabase env mangler: NEXT_PUBLIC_SUPABASE_URL/ANON_KEY');
-  cached = createSupabaseClient(url, anon, { auth: { persistSession: false } });
-  return cached;
-}
-
-// ✅ Gør den kompatibel med legacy-kald som `supabaseServer()`
-export function supabaseServer() {
-  return createClient();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value ?? "";
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: "", ...options });
+        },
+      },
+    }
+  );
 }

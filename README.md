@@ -82,3 +82,147 @@ Et open-source værktøj til haveejere og dyrkere, der kombinerer **vejrintegrat
 NEXT_PUBLIC_APP_NAME=CropMate
 NEXT_PUBLIC_SUPABASE_URL=YOUR_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_KEY
+
+
+🚀 Projekt-workflow (v0.6)
+
+Denne sektion beskriver vores build- og release-flow for CropMate v0.6.
+
+✅ CI (GitHub Actions)
+
+Kører automatisk på push til main og Pull Requests.
+
+Trin:
+
+Install → npm ci
+
+Typecheck → npm run typecheck (fallback til tsc --noEmit)
+
+Build → npm run build (Next.js 15 + Turbopack)
+
+Filer:
+
+.github/workflows/ci.yml (typecheck + build)
+
+.github/workflows/vercel-preview.yml (valgfrit – kun hvis vi ikke bruger Vercel GitHub-appen)
+
+Secrets (GitHub → Settings → Secrets and variables → Actions → New repository secret):
+
+NEXT_PUBLIC_SITE_URL
+
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+(valgfri server-keys hvis build kræver dem)
+
+CI-workflow’et skriver evt. secrets til .env under build. Fjern linjer du ikke har brug for.
+
+🔍 Vercel Preview (PRs)
+
+Anbefalet: brug Vercel GitHub App → auto-previews på alle PRs (ingen ekstra YAML nødvendig).
+Alternativ (CLI-styret): brug .github/workflows/vercel-preview.yml og sæt disse secrets:
+
+VERCEL_TOKEN
+
+VERCEL_ORG_ID
+
+VERCEL_PROJECT_ID
+
+Workflow’et:
+
+bygger projektet
+
+kører vercel pull for preview-envs
+
+deployer prebuilt og kommenterer preview-URL tilbage på PR
+
+Tip: Med Vercel-appen får du auto-kommentarer med preview-link uden ekstra konfiguration.
+
+🧭 Opret v0.6-issues (GitHub CLI)
+
+Vi bruger et script til at oprette milestone + labels + 1 tracking-issue + 7 under-issues (A–G).
+
+PowerShell (Windows)
+
+Installer GitHub CLI:
+
+winget install --id GitHub.cli
+
+
+Log ind:
+
+gh auth login
+
+
+Tillad scripts (første gang):
+
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+
+Kør scriptet i repo-roden:
+
+.\create-issues.ps1
+
+
+Scriptet:
+
+opretter milestone v0.6 (idempotent)
+
+opretter labels (frontend, backend, supabase, admin, ui-ux, pwa, priority:high, tracking)
+
+opretter alle issues med tjeklister og knytter dem til v0.6
+
+Alternativ til Windows: brug create-issues.sh i Bash (Git Bash/WSL/macOS/Linux).
+
+💻 Lokal udvikling (quickstart)
+# Installer
+npm ci
+
+# Kør lokalt
+npm run dev
+
+# Typecheck
+npm run typecheck
+
+# Build (prod)
+npm run build
+
+
+Krævede env-vars (min.):
+NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+→ læg dem i .env.local ved lokal kørsel.
+
+🧪 PR-flow (kort)
+
+Opret feature-branch
+
+Commit & push → åben PR
+
+CI kører typecheck + build
+
+Vercel Preview kommenterer preview-URL på PR
+
+Code review → merge til main
+
+Tagging til release: v0.6.0-beta → v0.6.0-stable
+
+🛠️ Fejl & fejlsøgning
+
+gh: command not found → installer GitHub CLI (winget install --id GitHub.cli) og åbne terminal igen.
+
+PowerShell blokerer .ps1 → kør Set-ExecutionPolicy RemoteSigned -Scope CurrentUser.
+
+Vercel Preview mangler → brug Vercel GitHub App eller sæt VERCEL_* secrets og aktiver vercel-preview.yml.
+
+Build fejler pga. envs → tjek at CI-secrets matcher de env-vars, build’en forventer.
+
+Type errors → kør lokalt npm run typecheck og fiks før PR.
+
+📦 Versionsstrategi
+
+v0.6.0-beta (feature-freeze + bugfixes)
+
+v0.6.0-stable (merge af testede fixes + final tag)
+
+Patch-releases: v0.6.x for hotfixes

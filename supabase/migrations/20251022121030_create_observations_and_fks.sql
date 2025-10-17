@@ -1,9 +1,6 @@
--- v0.6 fix v2: add safe FKs to observations without using ambiguous variable names
-
--- Ensure extension (idempotent)
+-- create observations (if missing) + safe FKs
 create extension if not exists "pgcrypto";
 
--- Ensure observations table exists (idempotent)
 do $$
 begin
   if not exists (
@@ -32,66 +29,50 @@ begin
   end if;
 end $$;
 
--- Add FKs if referenced tables exist and constraint not already present
+-- FKs (only if target tables exist and constraint not already present)
 do $$
 begin
   -- user_id -> profiles.id
   if exists (select 1 from information_schema.tables where table_schema='public' and table_name='profiles') then
     if not exists (
-      select 1 from pg_constraint
-      where conname = 'observations_user_id_fkey'
-        and conrelid = 'public.observations'::regclass
+      select 1 from pg_constraint where conname='observations_user_id_fkey' and conrelid='public.observations'::regclass
     ) then
-      execute $sql$
-        alter table public.observations
-          add constraint observations_user_id_fkey
-          foreign key (user_id) references public.profiles(id) on delete set null
-      $sql$;
+      execute $sql$ alter table public.observations
+        add constraint observations_user_id_fkey
+        foreign key (user_id) references public.profiles(id) on delete set null $sql$;
     end if;
   end if;
 
   -- garden_id -> gardens.id
   if exists (select 1 from information_schema.tables where table_schema='public' and table_name='gardens') then
     if not exists (
-      select 1 from pg_constraint
-      where conname = 'observations_garden_id_fkey'
-        and conrelid = 'public.observations'::regclass
+      select 1 from pg_constraint where conname='observations_garden_id_fkey' and conrelid='public.observations'::regclass
     ) then
-      execute $sql$
-        alter table public.observations
-          add constraint observations_garden_id_fkey
-          foreign key (garden_id) references public.gardens(id) on delete cascade
-      $sql$;
+      execute $sql$ alter table public.observations
+        add constraint observations_garden_id_fkey
+        foreign key (garden_id) references public.gardens(id) on delete cascade $sql$;
     end if;
   end if;
 
   -- pest_id -> pests.id
   if exists (select 1 from information_schema.tables where table_schema='public' and table_name='pests') then
     if not exists (
-      select 1 from pg_constraint
-      where conname = 'observations_pest_id_fkey'
-        and conrelid = 'public.observations'::regclass
+      select 1 from pg_constraint where conname='observations_pest_id_fkey' and conrelid='public.observations'::regclass
     ) then
-      execute $sql$
-        alter table public.observations
-          add constraint observations_pest_id_fkey
-          foreign key (pest_id) references public.pests(id) on delete set null
-      $sql$;
+      execute $sql$ alter table public.observations
+        add constraint observations_pest_id_fkey
+        foreign key (pest_id) references public.pests(id) on delete set null $sql$;
     end if;
   end if;
 
   -- disease_id -> diseases.id
   if exists (select 1 from information_schema.tables where table_schema='public' and table_name='diseases') then
     if not exists (
-      select 1 from pg_constraint
-      where conname = 'observations_disease_id_fkey'
-        and conrelid = 'public.observations'::regclass
+      select 1 from pg_constraint where conname='observations_disease_id_fkey' and conrelid='public.observations'::regclass
     ) then
-      execute $sql$
-        alter table public.observations
-          add constraint observations_disease_id_fkey
-          foreign key (disease_id) references public.diseases(id) on delete set null
-      $sql$;
+      execute $sql$ alter table public.observations
+        add constraint observations_disease_id_fkey
+        foreign key (disease_id) references public.diseases(id) on delete set null $sql$;
     end if;
   end if;
 end $$;
