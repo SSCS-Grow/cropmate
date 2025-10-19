@@ -1,21 +1,18 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 
-export default function TopList({ title, dim }: { title: string; dim: 'type' }) {
-  const sp = useSearchParams()
+export default function TopList({
+  title, dim, start, end
+}: { title: string; dim: 'type'; start: string; end: string }) {
   const [rows, setRows] = useState<{ label: string; count: number }[]>([])
 
   useEffect(() => {
-    const start = sp.get('start') ?? ''
-    const end = sp.get('end') ?? ''
-    if (!start || !end) return
     const qs = new URLSearchParams({ dim, start, end })
     fetch(`/api/analytics/breakdown?${qs.toString()}`)
       .then((r) => r.json())
       .then((res) => setRows(res.rows ?? []))
       .catch(() => setRows([]))
-  }, [sp, dim])
+  }, [dim, start, end])
 
   return (
     <div className="border rounded-2xl p-4">

@@ -1,28 +1,20 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts'
 
 type Row = { observed_date: string; count: number }
 
-export default function TimeseriesChart() {
-  const sp = useSearchParams()
+export default function TimeseriesChart({ start, end, type }: { start: string; end: string; type: string }) {
   const [data, setData] = useState<Row[]>([])
 
   useEffect(() => {
-    const start = sp.get('start') ?? ''
-    const end = sp.get('end') ?? ''
-    const type = sp.get('type') ?? ''
-    if (!start || !end) return
-
     const qs = new URLSearchParams({ start, end })
     if (type) qs.set('type', type)
-
     fetch(`/api/analytics/timeseries?${qs.toString()}`)
       .then((r) => r.json())
       .then((res) => setData(res.rows ?? []))
       .catch(() => setData([]))
-  }, [sp])
+  }, [start, end, type])
 
   return (
     <div className="border rounded-2xl p-4">

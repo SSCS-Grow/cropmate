@@ -1,22 +1,16 @@
 'use client'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 
-export default function Filters() {
-  const sp = useSearchParams()
+export default function Filters({
+  start, end, type,
+}: { start: string; end: string; type: string }) {
   const router = useRouter()
 
-  const start = sp.get('start') ?? new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)
-  const end = sp.get('end') ?? new Date().toISOString().slice(0, 10)
-  const type = sp.get('type') ?? ''
-
   const update = (patch: Record<string, string>) => {
-    const params = new URLSearchParams(sp.toString())
+    const params = new URLSearchParams({ start, end, type })
     Object.entries(patch).forEach(([k, v]) => (v ? params.set(k, v) : params.delete(k)))
     router.push(`?${params.toString()}`)
   }
-
-  const types = useMemo(() => ['', 'pest', 'disease', 'other'], [])
 
   return (
     <div className="flex flex-wrap gap-3 items-end">
@@ -45,10 +39,8 @@ export default function Filters() {
           defaultValue={type}
           onChange={(e) => update({ type: e.target.value })}
         >
-          {types.map((t) => (
-            <option key={t} value={t}>
-              {t || 'Alle'}
-            </option>
+          {['', 'pest', 'disease', 'other'].map((t) => (
+            <option key={t} value={t}>{t || 'Alle'}</option>
           ))}
         </select>
       </div>

@@ -1,22 +1,21 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 
-export default function KPI({ label, id, field }: { label: string; id: string; field: 'total'|'unique_types'|'unique_crops'|'last24h' }) {
-  const sp = useSearchParams()
+export default function KPI({
+  label, id, field, start, end
+}: {
+  label: string; id: string; field: 'total'|'unique_types'|'unique_crops'|'last24h'
+  start: string; end: string
+}) {
   const [value, setValue] = useState<string>('—')
 
   useEffect(() => {
-    const start = sp.get('start') ?? ''
-    const end = sp.get('end') ?? ''
-    if (!start || !end) return
     const qs = new URLSearchParams({ start, end })
-
     fetch(`/api/analytics/kpis?${qs.toString()}`)
       .then((r) => r.json())
       .then((res) => setValue(String(res[field] ?? '—')))
       .catch(() => setValue('—'))
-  }, [sp, field])
+  }, [start, end, field])
 
   return (
     <div className="border rounded-2xl p-4">
