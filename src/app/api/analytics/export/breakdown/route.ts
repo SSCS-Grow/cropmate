@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     return new NextResponse('Unsupported dim', { status: 400 })
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data, error } = await supabase.rpc('rpc_analytics_breakdown', {
     dim, start_date: start, end_date: end,
   })

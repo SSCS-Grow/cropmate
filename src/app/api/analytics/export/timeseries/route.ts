@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     return new NextResponse('Missing start/end', { status: 400 })
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data, error } = await supabase.rpc('rpc_analytics_timeseries', {
     start_date: start,
     end_date: end,
