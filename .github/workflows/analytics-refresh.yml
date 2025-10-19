@@ -1,0 +1,24 @@
+name: Refresh analytics materialized view (daily)
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # kører hver dag kl. 04:00 UTC (ca. 06:00 dansk tid)
+  workflow_dispatch:       # giver dig mulighed for at køre den manuelt
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase RPC to refresh analytics MV
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          echo "Calling rpc_analytics_refresh at $SUPABASE_URL"
+          curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/rpc_analytics_refresh" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            | jq .
