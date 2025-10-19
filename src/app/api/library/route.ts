@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await (supabase as any)
     .from('pests')
     .select('*')
@@ -13,7 +13,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const body = await req.json();
 
   // body forventes at ligne:

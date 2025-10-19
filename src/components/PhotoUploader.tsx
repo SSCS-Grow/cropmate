@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import Image from "next/image";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 
 type Props = {
   onUploaded?: (publicUrl: string) => void;
@@ -19,7 +19,7 @@ export default function PhotoUploader({
   maxWidth = 1600,
   quality = 0.82,
 }: Props) {
-  const supabase = createClientComponentClient();
+  const supabase = getSupabaseBrowser();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -27,7 +27,13 @@ export default function PhotoUploader({
   async function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const compressed = await compressImage(file, maxWidth, quality);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert("Du skal være logget ind for at uploade billeder.");
+      return;
+    }
+
+   const compressed = await compressImage(file, maxWidth, quality);
     setPreview(URL.createObjectURL(compressed));
 
     setUploading(true);
@@ -42,6 +48,7 @@ export default function PhotoUploader({
       const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
       onUploaded?.(data.publicUrl);
     } catch (err: any) {
+      // Supabase returnerer { message, name, status, ... }
       alert(`Upload fejlede: ${err.message ?? err}`);
     } finally {
       setUploading(false);

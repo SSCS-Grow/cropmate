@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
  * lukker over en synkron cookieStore (ReadonlyRequestCookies).
  */
 export async function createSupabaseServer() {
-  const cookieStore = await cookies(); // <-- vigtig ændring
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,3 +26,11 @@ export async function createSupabaseServer() {
     }
   );
 }
+
+/** 🔁 Legacy aliaser (bagudkompatibilitet) */
+export async function supabaseServer() {
+  return createSupabaseServer();
+}
+
+/** Nogle filer importerer `createClient` fra denne sti – giv dem et alias */
+export const createClient = createSupabaseServer;

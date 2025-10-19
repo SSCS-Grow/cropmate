@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 type Params = { params: { id: string } };
 
 export async function GET(_: NextRequest, { params }: Params) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await (supabase as any)
     .from('pests')
     .select('*')
@@ -16,7 +16,7 @@ export async function GET(_: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const patch = await req.json();
 
   const { data, error } = await (supabase as any)
@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_: NextRequest, { params }: Params) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await (supabase as any)
     .from('pests')
     .delete()

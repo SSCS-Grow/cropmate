@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 type TemplateRow = { id: string; name: string; description?: string|null; items: any[] };
 
 export default async function TemplatePage({ params }: { params: { id: string }}) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: template } = await supabase
     .from('scout_templates')
     .select('*')
@@ -16,7 +16,7 @@ export default async function TemplatePage({ params }: { params: { id: string }}
 
   async function createRun() {
     'use server';
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('scout_runs')
       .insert({ template_id: params.id } as any)

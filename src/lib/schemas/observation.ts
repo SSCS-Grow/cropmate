@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const Status = z.enum(["active", "hidden", "flagged"]).default("active");
+
 export const ObservationCreate = z.object({
   title: z.string().min(2).max(120),
   description: z.string().max(2000).optional().default(""),
@@ -10,6 +12,7 @@ export const ObservationCreate = z.object({
   garden_id: z.string().uuid().nullable().optional(),
   photo_url: z.string().url().optional(),
   taken_at: z.string().datetime().optional(),
+  status: Status.optional(), // (server sætter default)
 });
 
 export const ObservationUpdate = ObservationCreate.partial();

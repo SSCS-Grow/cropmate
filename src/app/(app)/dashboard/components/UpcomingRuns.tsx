@@ -5,7 +5,7 @@ type RunRow = { id: string; planned_for: string|null; scout_templates?: { name: 
 
 
 export default async function UpcomingRuns() {
-const supabase = createClient();
+const supabase = await createClient();
 const today = new Date();
 const week = new Date(today.getTime() + 7 * 24 * 3600_000);
 
