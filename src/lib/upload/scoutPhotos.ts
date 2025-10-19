@@ -2,7 +2,7 @@
 import { createClient } from '@/lib/supabase/server';
 
 export async function uploadScoutPhoto(file: File, profileId: string) {
-  const supabase = createClient();
+ const supabase = await createClient(); 
   const bucket = 'scout-photos';
   const ext = file.name.split('.').pop() || 'jpg';
   const path = `${profileId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;

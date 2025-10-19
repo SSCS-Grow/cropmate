@@ -5,7 +5,7 @@ type RuleRow = { id: string; name: string; last_fired_at: string|null };
 
 
 export default async function RecentAlerts() {
-const supabase = createClient();
+const supabase = await createClient();
 const { data, error } = await (supabase as any)
 .from('alert_rules')
 .select('id, name, last_fired_at')

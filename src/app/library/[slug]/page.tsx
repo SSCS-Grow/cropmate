@@ -13,7 +13,7 @@ type PestRow = {
 };
 
 export default async function LibraryDetailPage({ params }: { params: { slug: string } }) {
-  const supabase = createClient();
+ const supabase = await createClient(); 
 
   // 👇 slå generics fra omkring .from(...) og cast data bagefter
   const { data, error } = await (supabase as any)

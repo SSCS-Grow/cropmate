@@ -10,7 +10,7 @@ type RuleRow = {
 };
 
 export default async function AlertsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: rules } = await supabase
     .from('alert_rules')
     .select('*')

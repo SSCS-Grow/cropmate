@@ -5,7 +5,7 @@ type TemplateRow = { id: string; name: string; items: any[] };
 type RunRow = { id: string; started_at: string|null; finished_at: string|null; scout_templates?: { name: string } };
 
 export default async function ScoutHome() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: templates } = await supabase
     .from('scout_templates')
     .select('*')

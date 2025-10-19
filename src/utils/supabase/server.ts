@@ -36,7 +36,7 @@ export async function getUserAndAdmin(): Promise<{
   user: (User & { email?: string | null }) | null;
   isAdmin: boolean;
 }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

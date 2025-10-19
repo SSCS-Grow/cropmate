@@ -5,7 +5,7 @@ type RunRow = { id: string; finished_at: string|null; created_at?: string; scout
 
 
 export default async function LatestScout() {
-const supabase = createClient();
+const supabase = await createClient();
 const { data, error } = await (supabase as any)
 .from('scout_runs')
 .select('id, finished_at, created_at, scout_templates(name)')

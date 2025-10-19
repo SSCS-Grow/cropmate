@@ -32,12 +32,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link className="underline" href="/scout">Scouting</Link>
               <Link className="underline" href="/calendar">Kalender</Link>
               <Link className="underline" href="/library">Bibliotek</Link>
+              <Link href="/observations">Observationer</Link>
+
               <Link className="underline inline-flex items-center" href="/tasks">
                 Opgaver
                 <NavTasksBadge /> {/* ← badge her */}
               </Link>
               <Link className="underline" href="/settings">Indstillinger</Link>
                <AdminNavLink /> {/* ← vises kun for admins */}
+               <Link href="/admin/observations">Admin</Link>
             </nav>
           </header>
 
