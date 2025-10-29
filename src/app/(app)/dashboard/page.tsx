@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client' // erstatter supabaseBrowser
 import PushCta from '@/components/settings/PushCta'
 import ServiceWorkerReady from '@/components/system/ServiceWorkerReady'
+import InsightsPanel from '@/components/insights/InsightsPanel'
 
 // Vejrkortet
 const WeatherCard = dynamic(
