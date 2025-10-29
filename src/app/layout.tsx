@@ -1,18 +1,26 @@
+// src/app/layout.tsx
 import './globals.css'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import NavTasksBadge from '../components/NavTasksBadge'
+import type { Metadata } from 'next'
+
+import NavTasksBadge from '@/components/NavTasksBadge'
 import AdminBadge from '@/components/AdminBadge'
 import AdminNavLink from '@/components/AdminNavLink'
+import ClientSW from './ClientSW'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || 'CropMate',
+  description: 'Grow smarter.',
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="da">
       <body className="min-h-screen bg-slate-50 text-slate-900">
+        {/* Registrerer service worker KUN i browseren */}
+        <ClientSW />
+
         <div className="max-w-4xl mx-auto p-4">
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-4">
             <div className="flex items-center gap-3">
@@ -23,7 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <AdminBadge />
             </div>
 
-            <nav className="flex gap-4 text-sm">
+            <nav className="flex flex-wrap gap-4 text-sm">
               <Link className="underline" href="/dashboard">Dashboard</Link>
               <Link className="underline" href="/crops">Katalog</Link>
               <Link className="underline" href="/hazards">Skadedyr</Link>
@@ -32,15 +40,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link className="underline" href="/scout">Scouting</Link>
               <Link className="underline" href="/calendar">Kalender</Link>
               <Link className="underline" href="/library">Bibliotek</Link>
-              <Link href="/observations">Observationer</Link>
-
+              <Link className="underline" href="/observations">Observationer</Link>
               <Link className="underline inline-flex items-center" href="/tasks">
-                Opgaver
-                <NavTasksBadge /> {/* ← badge her */}
+                Opgaver <NavTasksBadge />
               </Link>
               <Link className="underline" href="/settings">Indstillinger</Link>
-               <AdminNavLink /> {/* ← vises kun for admins */}
-               <Link href="/admin/observations">Admin</Link>
+              {/* Admin-link (vises kun for admins) */}
+              <AdminNavLink />
             </nav>
           </header>
 
