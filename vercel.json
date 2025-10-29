@@ -2,6 +2,14 @@
   "crons": [
     { "path": "/api/cron/frost",  "schedule": "0 5 * * *" },
     { "path": "/api/cron/water",  "schedule": "0 6 * * *" },
-    { "path": "/api/cron/health", "schedule": "0 5 * * *" }
+    { "path": "/api/cron/health", "schedule": "0 5 * * *" },
+    {
+      "path": "/api/admin/reindex-library",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/admin/reindex-library?fromQueue=1",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }

@@ -1,56 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { ObservationCreate } from "@/lib/schemas/observation";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-export async function GET(req: NextRequest) {
-  const supabase = await createSupabaseServer();
-  const { searchParams } = new URL(req.url);
-  const limit = Number(searchParams.get("limit") ?? 50);
-  const from = Number(searchParams.get("from") ?? 0);
-  const to = from + Math.min(limit, 200);
+export const runtime = "edge";
 
-  let query = supabase.from("observations").select("*", { count: "exact" }).order("created_at", { ascending: false }).range(from, to);
-
-  const pest = searchParams.get("pest_id");
-  const disease = searchParams.get("disease_id");
-  const status = searchParams.get("status");
-  const dateFrom = searchParams.get("fromDate");
-  const dateTo = searchParams.get("toDate");
-
-  if (pest) query = query.eq("pest_id", pest);
-  if (disease) query = query.eq("disease_id", disease);
-  if (status) query = query.eq("status", status);
-  if (dateFrom) query = query.gte("created_at", dateFrom);
-  if (dateTo) query = query.lte("created_at", dateTo);
-
-  const { data, error, count } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ items: data, count });
-}
+type Body = {
+  plant?: string;
+  symptoms_text: string;
+  diagnosis?: string;
+  photo_url?: string;
+};
 
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+        },
+      }
+    );
 
-  const json = await req.json();
-  const parsed = ObservationCreate.safeParse(json);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const { data: { user }, error: uErr } = await supabase.auth.getUser();
+    if (uErr) {
+      return NextResponse.json({ error: "Auth error", detail: uErr.message }, { status: 401 });
+    }
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
 
-  const payload = parsed.data;
-  const { data, error } = await supabase.from("observations").insert({
-    user_id: user.id,
-    title: payload.title,
-    description: payload.description,
-    lat: payload.lat,
-    lng: payload.lng,
-    pest_id: payload.pest_id ?? null,
-    disease_id: payload.disease_id ?? null,
-    garden_id: payload.garden_id ?? null,
-    photo_url: payload.photo_url,
-    taken_at: payload.taken_at,
-  }).select("*").single();
+    const body = (await req.json()) as Body;
+    if (!body?.symptoms_text || !body.symptoms_text.trim()) {
+      return NextResponse.json({ error: "symptoms_text is required" }, { status: 400 });
+    }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ item: data }, { status: 201 });
+    const payload = {
+      user_id: user.id,
+      plant: body.plant || null,
+      symptoms_text: body.symptoms_text.trim(),
+      diagnosis: body.diagnosis || null,
+      photo_url: body.photo_url || null,
+    };
+
+    const { data, error } = await supabase.from("observations").insert(payload).select("id").single();
+    if (error) {
+      return NextResponse.json({ error: "Insert failed", detail: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ ok: true, id: data?.id });
+  } catch (e: any) {
+    return NextResponse.json({ error: "Server error", detail: e?.message }, { status: 500 });
+  }
 }
