@@ -104,7 +104,7 @@ export async function GET(req: Request) {
         const trendPct = p === 0 ? (r > 0 ? 100 : 0) : Math.round(((r - p) / p) * 100)
 
         // simple severities
-        const severity =
+        const severity: 'low' | 'medium' | 'high' =
           r >= 20 || trendPct >= 75 ? 'high' :
           r >= 8  || trendPct >= 35 ? 'medium' : 'low'
 

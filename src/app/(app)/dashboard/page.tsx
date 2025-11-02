@@ -1,14 +1,16 @@
+// src/app/(app)/dashboard/page.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { createClient } from '@/lib/supabase/client' // erstatter supabaseBrowser
+
+import { createClient } from '@/lib/supabase/client' // browser-Supabase klient
 import PushCta from '@/components/settings/PushCta'
 import ServiceWorkerReady from '@/components/system/ServiceWorkerReady'
 import InsightsPanel from '@/components/insights/InsightsPanel'
 
-// Vejrkortet
+// ——— Lazy-loadede kort/vejr-komponenter ———
 const WeatherCard = dynamic(
   () => import('@/components/WeatherCard').then((m) => m.default ?? (m as any)),
   {
@@ -21,7 +23,6 @@ const WeatherCard = dynamic(
   }
 )
 
-// Vandingsoversigt (ET₀/auto-plan)
 const AutoWaterSummary = dynamic(
   () => import('@/components/AutoWaterSummary').then((m) => m.default ?? (m as any)),
   {
@@ -34,7 +35,6 @@ const AutoWaterSummary = dynamic(
   }
 )
 
-// Vandingsrådgiver (5 dage frem)
 const WaterAdvisor = dynamic(
   () => import('@/components/WaterAdvisor').then((m) => m.default ?? (m as any)),
   {
@@ -47,7 +47,6 @@ const WaterAdvisor = dynamic(
   }
 )
 
-// Vejrhistorik (7 dage)
 const WeatherHistory = dynamic(
   () => import('@/components/WeatherHistory').then((m) => m.default ?? (m as any)),
   {
@@ -60,7 +59,7 @@ const WeatherHistory = dynamic(
   }
 )
 
-// Types
+// ——— Types ———
 type TaskType =
   | 'sow'
   | 'transplant'
@@ -96,7 +95,7 @@ type AlertRow = {
   hazard_id?: string | null
 }
 
-export default function DashboardClient() {
+export default function DashboardPage() {
   const supabase = useMemo(() => createClient(), [])
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [alerts, setAlerts] = useState<AlertRow[]>([])
@@ -107,29 +106,48 @@ export default function DashboardClient() {
     ;(async () => {
       setLoading(true)
       const { data: session } = await supabase.auth.getSession()
-      if (!session.session) { setLoading(false); return }
+      if (!session.session) {
+        setLoading(false)
+        return
+      }
 
-      const [{ data: t }, { data: a }] = await Promise.all([
-        (supabase as any).from('tasks').select('*').order('due_date', { ascending: true }).limit(20),
-        (supabase as any).from('alerts').select('*').order('created_at', { ascending: false }).limit(10),
+      const [{ data: t, error: tErr }, { data: a, error: aErr }] = await Promise.all([
+        (supabase as any)
+          .from('tasks')
+          .select('*')
+          .order('due_date', { ascending: true })
+          .limit(20),
+        (supabase as any)
+          .from('alerts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10),
       ])
 
       if (!alive) return
-      setTasks((t || []) as TaskRow[])
-      setAlerts((a || []) as AlertRow[])
+      if (!tErr) setTasks((t || []) as TaskRow[])
+      if (!aErr) setAlerts((a || []) as AlertRow[])
       setLoading(false)
     })()
-    return () => { alive = false }
+    return () => {
+      alive = false
+    }
   }, [supabase])
 
   const taskPill = (type: TaskType) =>
-    type === 'sow'        ? 'bg-green-100 text-green-800'   :
-    type === 'transplant' ? 'bg-emerald-100 text-emerald-800':
-    type === 'fertilize'  ? 'bg-yellow-100 text-yellow-800' :
-    type === 'prune'      ? 'bg-purple-100 text-purple-800' :
-    type === 'water'      ? 'bg-blue-100 text-blue-800'     :
-    type === 'harvest'    ? 'bg-orange-100 text-orange-800' :
-                            'bg-slate-100 text-slate-800'
+    type === 'sow'
+      ? 'bg-green-100 text-green-800'
+      : type === 'transplant'
+      ? 'bg-emerald-100 text-emerald-800'
+      : type === 'fertilize'
+      ? 'bg-yellow-100 text-yellow-800'
+      : type === 'prune'
+      ? 'bg-purple-100 text-purple-800'
+      : type === 'water'
+      ? 'bg-blue-100 text-blue-800'
+      : type === 'harvest'
+      ? 'bg-orange-100 text-orange-800'
+      : 'bg-slate-100 text-slate-800'
 
   function alertBadge(a: AlertRow) {
     switch (a.type) {
@@ -146,14 +164,17 @@ export default function DashboardClient() {
 
   const today = new Date().toISOString().slice(0, 10)
   const todaysInspections = tasks.filter(
-    t => t.notes?.startsWith('Inspektion:') && t.due_date === today
+    (t) => t.notes?.startsWith('Inspektion:') && t.due_date === today
   ).length
 
-  // Markér opgave som 'done' eller 'skipped' (optimistisk UI + rollback)
+  // ——— Opgavehandlinger ———
   async function setTaskStatus(id: string, newStatus: TaskStatus) {
     const prev = [...tasks]
-    setTasks(prev.map(t => t.id === id ? { ...t, status: newStatus } : t))
-    const { error } = await (supabase as any).from('tasks').update({ status: newStatus }).eq('id', id)
+    setTasks(prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)))
+    const { error } = await (supabase as any)
+      .from('tasks')
+      .update({ status: newStatus })
+      .eq('id', id)
     if (error) {
       setTasks(prev) // rollback
       alert('Kunne ikke opdatere opgaven – prøv igen.')
@@ -164,7 +185,7 @@ export default function DashboardClient() {
     await setTaskStatus(id, 'pending')
   }
 
-  // Opret inspektionsopgaver fra et varsel
+  // ——— Opret inspektionsopgaver fra et varsel ———
   async function createInspectionFromAlert(a: AlertRow) {
     try {
       if (a.type !== 'pest' && a.type !== 'disease') {
@@ -178,9 +199,15 @@ export default function DashboardClient() {
 
       const { data: session } = await supabase.auth.getSession()
       const uid = session.session?.user.id
-      if (!uid) { alert('Log ind først.'); return }
+      if (!uid) {
+        alert('Log ind først.')
+        return
+      }
 
-      const { data: uc } = await (supabase as any).from('user_crops').select('crop_id').eq('user_id', uid)
+      const { data: uc } = await (supabase as any)
+        .from('user_crops')
+        .select('crop_id')
+        .eq('user_id', uid)
       const mySet = new Set<string>((uc || []).map((r: { crop_id: string }) => r.crop_id))
 
       const { data: hosts } = await (supabase as any)
@@ -214,7 +241,10 @@ export default function DashboardClient() {
       } else {
         alert(`Oprettet ${rows.length} inspektionsopgave(r) i dag.`)
         const { data: t } = await (supabase as any)
-          .from('tasks').select('*').order('due_date', { ascending: true }).limit(20)
+          .from('tasks')
+          .select('*')
+          .order('due_date', { ascending: true })
+          .limit(20)
         setTasks((t || []) as TaskRow[])
       }
     } catch {
@@ -226,11 +256,14 @@ export default function DashboardClient() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* SW & Push CTA i toppen */}
+      {/* SW-status & Push-tilmelding */}
       <ServiceWorkerReady />
       <PushCta />
 
       <h1 className="text-2xl font-bold">Dashboard</h1>
+
+      {/* Grow-AI / Insights */}
+      <InsightsPanel />
 
       <div className="grid gap-6">
         {/* Vejr */}
@@ -262,6 +295,7 @@ export default function DashboardClient() {
               {todaysInspections} inspektionsopgave{todaysInspections === 1 ? '' : 'r'} i dag
             </span>
           </div>
+
           <ul className="space-y-2">
             {tasks.map((t) => {
               const isInspection = t.notes?.startsWith('Inspektion:')
