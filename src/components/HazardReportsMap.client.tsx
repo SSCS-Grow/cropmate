@@ -21,6 +21,7 @@ import {
   useMap,
   useMapEvents,
 } from 'react-leaflet';
+// supercluster har ikke perfekte typer – vi holder det enkelt
 import supercluster, { type PointFeature } from 'supercluster';
 
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
@@ -38,50 +39,9 @@ type ReportRow = {
 };
 type CropOpt = { crop_id: string; name: string };
 
-// === Heatmap gradients & helpers ===
-type GradientMap = Record<number, string>;
-const HEAT_GRADIENTS: Record<'classic' | 'fire' | 'bluegreen', GradientMap> = {
-  classic: {
-    0.0: '#2c7bb6',
-    0.2: '#abd9e9',
-    0.4: '#ffffbf',
-    0.6: '#fdae61',
-    0.8: '#d7191c',
-    1.0: '#8b0000',
-  },
-  fire: {
-    0.0: '#000000',
-    0.2: '#440154',
-    0.4: '#31688e',
-    0.6: '#35b779',
-    0.8: '#fde725',
-    1.0: '#ffffff',
-  },
-  bluegreen: {
-    0.0: '#0a2540',
-    0.25: '#1e3a8a',
-    0.5: '#0ea5a5',
-    0.75: '#a7f3d0',
-    1.0: '#ecfccb',
-  },
-};
-function getGradient(
-  key: 'classic' | 'fire' | 'bluegreen' | string | undefined,
-): GradientMap {
-  if (!key) return HEAT_GRADIENTS.classic;
-  const k = key as keyof typeof HEAT_GRADIENTS;
-  return HEAT_GRADIENTS[k] ?? HEAT_GRADIENTS.classic;
-}
-function gradientToCssLinear(grad: GradientMap) {
-  const stops = Object.entries(grad)
-    .map(([k, v]) => ({ stop: Number(k), color: v }))
-    .sort((a, b) => a.stop - b.stop)
-    .map(({ stop, color }) => `${color} ${Math.round(stop * 100)}%`);
-  return `linear-gradient(90deg, ${stops.join(', ')})`;
-}
-
 const HAZARD_BUCKET = 'hazard-photos';
 
+// Helpers
 function toDateInput(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -124,6 +84,7 @@ function clusterDivIcon(count: number) {
     iconSize: [size, size],
   });
 }
+
 function ViewportTracker({
   onChange,
 }: {
@@ -164,6 +125,41 @@ function ViewportTracker({
   });
   return null;
 }
+
+type GradientMap = Record<number, string>;
+const HEAT_GRADIENTS: Record<'classic' | 'fire' | 'bluegreen', GradientMap> = {
+  classic: {
+    0.0: '#2c7bb6',
+    0.2: '#abd9e9',
+    0.4: '#ffffbf',
+    0.6: '#fdae61',
+    0.8: '#d7191c',
+    1.0: '#8b0000',
+  },
+  fire: {
+    0.0: '#000000',
+    0.2: '#440154',
+    0.4: '#31688e',
+    0.6: '#35b779',
+    0.8: '#fde725',
+    1.0: '#ffffff',
+  },
+  bluegreen: {
+    0.0: '#0a2540',
+    0.25: '#1e3a8a',
+    0.5: '#0ea5a5',
+    0.75: '#a7f3d0',
+    1.0: '#ecfccb',
+  },
+};
+function gradientToCssLinear(grad: GradientMap) {
+  const stops = Object.entries(grad)
+    .map(([k, v]) => ({ stop: Number(k), color: v }))
+    .sort((a, b) => a.stop - b.stop)
+    .map(({ stop, color }) => `${color} ${Math.round(stop * 100)}%`);
+  return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
 function HeatmapLayer({
   points,
   radius = 25,
@@ -208,6 +204,22 @@ function HeatmapLayer({
       }
     };
   }, [map, enabled, radius, blur, maxZoom, points, gradient]);
+  return null;
+}
+
+// Sætter mapRef uden at bruge whenReady/whenCreated
+function MapRefSetter({
+  mapRef,
+}: {
+  mapRef: React.MutableRefObject<L.Map | null>;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    mapRef.current = map;
+    return () => {
+      mapRef.current = null;
+    };
+  }, [map, mapRef]);
   return null;
 }
 
@@ -396,17 +408,13 @@ export default function HazardReportsMapClient({
   const [cropOptions, setCropOptions] = useState<CropOpt[]>([]);
 
   // Clustering
-  const indexRef = useRef<supercluster | null>(null);
+  const indexRef = useRef<any>(null);
   const [clusters, setClusters] = useState<any[]>([]);
   const [viewport, setViewport] = useState<{
     bounds: L.LatLngBounds | null;
     zoom: number;
     center: [number, number] | null;
-  }>({
-    bounds: null,
-    zoom: initialZoom,
-    center: null,
-  });
+  }>({ bounds: null, zoom: initialZoom, center: null });
 
   // Heatmap
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -449,7 +457,7 @@ export default function HazardReportsMapClient({
       if (qBlur) setHeatBlur(Number(qBlur));
       const qPal = pick('hp');
       if (qPal && ['classic', 'fire', 'bluegreen'].includes(qPal))
-        setHeatPalette(qPal as 'classic' | 'fire' | 'bluegreen');
+        setHeatPalette(qPal as any);
 
       const qLat = pick('lat');
       const qLng = pick('lng');
@@ -709,23 +717,21 @@ export default function HazardReportsMapClient({
 
   // Export CSV – alle filtrerede eller kun viewport
   function exportCsv(allFiltered: boolean) {
-    function makeCsv(rows: Array<Record<string, any>>): string {
-      if (!rows || rows.length === 0) return '';
-      const first: Record<string, any> = rows[0] ?? {};
-      const headers = Object.keys(first as object);
-
+    const makeCsv = (rows: Array<Record<string, any>>) => {
+      if (!rows.length) return '';
+      const headers = Object.keys(rows[0] as Record<string, any>);
       const esc = (v: any) => {
         if (v == null) return '';
         const s = String(v);
         return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
       };
-
-      const lines = [
+      return [
         headers.join(','),
-        ...rows.map((r) => headers.map((h) => esc(r[h])).join(',')),
-      ];
-      return lines.join('\n');
-    }
+        ...rows.map((r) =>
+          headers.map((h) => esc((r as Record<string, any>)[h])).join(','),
+        ),
+      ].join('\n');
+    };
 
     let chosen: ReportRow[] = [];
     if (allFiltered) {
@@ -786,6 +792,7 @@ export default function HazardReportsMapClient({
         }),
     [reports],
   );
+  const legendCss = gradientToCssLinear(HEAT_GRADIENTS[heatPalette]);
 
   const handleLocated = (p: { lat: number; lng: number; acc?: number }) => {
     setMyPos([p.lat, p.lng]);
@@ -886,6 +893,7 @@ export default function HazardReportsMapClient({
       alert('Kunne ikke skjule: ' + error.message);
       return;
     }
+    // Fjern fra visning
     setReports((prev) => prev.filter((r) => r.id !== reportId));
   }
   // =============================
@@ -990,12 +998,6 @@ export default function HazardReportsMapClient({
     setTempFile(null);
     setTempPreview(null);
   }
-
-  // Legend CSS (med sikker fallback)
-  const legendCss = useMemo(
-    () => gradientToCssLinear(getGradient(heatPalette)),
-    [heatPalette],
-  );
 
   return (
     <div className="grid gap-3">
@@ -1236,8 +1238,10 @@ export default function HazardReportsMapClient({
             scrollWheelZoom
             style={{ width: '100%', height: '100%' }}
             className="z-0"
-            ref={mapRef}
           >
+            {/* Sæt mapRef her */}
+            <MapRefSetter mapRef={mapRef} />
+
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="&copy; OpenStreetMap"
@@ -1253,7 +1257,7 @@ export default function HazardReportsMapClient({
                 radius={heatRadius}
                 blur={heatBlur}
                 maxZoom={18}
-                gradient={getGradient(heatPalette)}
+                gradient={HEAT_GRADIENTS[heatPalette]}
               />
             ) : (
               <>
