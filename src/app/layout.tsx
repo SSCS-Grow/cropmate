@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || 'CropMate',
   description: 'Grow smarter.',
 }
+export const runtime = 'nodejs'; // for Sentry server events
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

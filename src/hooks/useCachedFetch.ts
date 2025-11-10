@@ -1,49 +1,87 @@
-'use client';
+import { useEffect, useMemo, useState } from 'react';
 
-import { useEffect, useState } from 'react';
+type Opts = RequestInit & { ttlMs?: number };
 
 /**
- * useCachedFetch - simpel cache-aware data hook.
- * Viser cached data instant, mens den opdaterer fra netværket.
- *
- * Eksempel:
- * const { data, loading, error } = useCachedFetch('/api/library');
+ * Simpelt fetch-hook med localStorage-cache.
+ * - key: logisk nøgle til cachen (uden TTL/version i sig)
+ * - url: fuld URL
+ * - options: fetch options + ttlMs (default 5 min)
  */
+export default function useCachedFetch<T = unknown>(
+  key: string,
+  url: string,
+  options: Opts = {},
+) {
+  const ttlMs = options.ttlMs ?? 5 * 60 * 1000;
 
-export function useCachedFetch<T = any>(url: string, options?: RequestInit) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const cacheKey = useMemo(() => `cm_cache:${key}`, [key]);
+
+  type CacheEnvelope = { at: number; data: T };
+
+  const [data, setData] = useState<T | null>(() => {
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as CacheEnvelope;
+      if (typeof parsed?.at !== 'number') return null;
+      if (Date.now() - parsed.at > ttlMs) return null;
+      return parsed.data ?? null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [loading, setLoading] = useState<boolean>(() => data == null);
+  const [error, setError] = useState<string | null>(null);
+
+  const requestInit = useMemo(() => {
+    const { ttlMs: _ttl, ...rest } = options;
+    return JSON.stringify(rest ?? {});
+  }, [options]);
 
   useEffect(() => {
-    if (!url) return;
+    let alive = true;
 
-    const cacheKey = `cache:${url}`;
-
-    // 1️⃣ vis cache hvis findes
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
+    const run = async () => {
       try {
-        setData(JSON.parse(cached));
-        setLoading(false);
-      } catch {}
-    }
+        if (data != null) {
+          setLoading(false);
+          return;
+        }
 
-    // 2️⃣ hent nyt data og opdater cache
-    fetch(url, options)
-      .then(async (res) => {
-        if (!res.ok) throw new Error(res.statusText);
-        const json = await res.json();
+        const init = JSON.parse(requestInit || '{}') as RequestInit;
+        const res = await fetch(url, init);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const json = (await res.json()) as T;
+        if (!alive) return;
+
         setData(json);
-        localStorage.setItem(cacheKey, JSON.stringify(json));
         setLoading(false);
-      })
-      .catch((err) => {
-        console.warn('[useCachedFetch] offline eller fetch fejl', err);
-        setError(err);
-        setLoading(false);
-      });
-  }, [url]);
 
-  return { data, loading, error };
+        try {
+          const envelope: CacheEnvelope = { at: Date.now(), data: json };
+          localStorage.setItem(cacheKey, JSON.stringify(envelope));
+        } catch {
+          /* ignore quota */
+        }
+      } catch (e: any) {
+        if (!alive) return;
+        setError(e?.message || 'Network error');
+        setLoading(false);
+      }
+    };
+
+    const t = setTimeout(() => {
+      void run();
+    }, 0);
+
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+    // inkluderer 'data' for at tilfredsstille exhaustive-deps
+  }, [cacheKey, url, requestInit, data]);
+
+  return { data, loading, error, refetchKey: cacheKey };
 }

@@ -7,7 +7,12 @@ import { OPEN_METEO, safeFetchJSON } from '@/lib/weather';
 export const runtime = 'nodejs';
 
 type HourlyResp = { hourly?: { temperature_2m?: number[] } };
-type PrefRow = { user_id: string; frost_enabled: boolean; frost_threshold_c: number; locale: 'da' | 'en' };
+type PrefRow = {
+  user_id: string;
+  frost_enabled: boolean;
+  frost_threshold_c: number;
+  locale: 'da' | 'en';
+};
 type Garden = { user_id: string; lat: number; lon: number; name?: string };
 type SubRow = { endpoint: string; p256dh: string; auth: string };
 
@@ -32,7 +37,8 @@ export async function GET() {
     if (prefsErr) throw new Error(`prefs: ${prefsErr.message}`);
     const prefRows = (prefs ?? []) as PrefRow[];
     debug.prefsCount = prefRows.length;
-    if (!prefRows.length) return NextResponse.json({ ok: true, sent: 0, reason: 'no prefs' });
+    if (!prefRows.length)
+      return NextResponse.json({ ok: true, sent: 0, reason: 'no prefs' });
 
     const { data: gardens, error: gardensErr } = await supabase
       .from('gardens') // skift hvis jeres tabel hedder noget andet
@@ -42,7 +48,8 @@ export async function GET() {
     debug.gardensCount = gardenRows.length;
 
     const byUser = new Map<string, Garden>();
-    for (const g of gardenRows) if (!byUser.has(g.user_id)) byUser.set(g.user_id, g);
+    for (const g of gardenRows)
+      if (!byUser.has(g.user_id)) byUser.set(g.user_id, g);
 
     const todayKey = new Date().toISOString().slice(0, 10);
     let sent = 0;
@@ -50,24 +57,41 @@ export async function GET() {
 
     for (const p of prefRows) {
       const loc = byUser.get(p.user_id);
-      if (!loc) { skipped.push(`${p.user_id}:no-location`); continue; }
+      if (!loc) {
+        skipped.push(`${p.user_id}:no-location`);
+        continue;
+      }
 
       const minTemp = await fetchMinTemp(loc.lat, loc.lon);
-      if (minTemp > p.frost_threshold_c) { skipped.push(`${p.user_id}:above-threshold`); continue; }
+      if (minTemp > p.frost_threshold_c) {
+        skipped.push(`${p.user_id}:above-threshold`);
+        continue;
+      }
 
       const dedup_key = `frost:${todayKey}`;
       const { error: dupErr } = await supabase.from('notification_log').insert({
-        user_id: p.user_id, kind: 'frost', dedup_key
+        user_id: p.user_id,
+        kind: 'frost',
+        dedup_key,
       });
-      if (dupErr) { skipped.push(`${p.user_id}:dedup`); continue; }
+      if (dupErr) {
+        skipped.push(`${p.user_id}:dedup`);
+        continue;
+      }
 
       const { data: subs, error: subsErr } = await supabase
         .from('push_subscriptions')
         .select('endpoint, p256dh, auth')
         .eq('user_id', p.user_id);
-      if (subsErr) { skipped.push(`${p.user_id}:subsErr`); continue; }
+      if (subsErr) {
+        skipped.push(`${p.user_id}:subsErr`);
+        continue;
+      }
       const subRows = (subs ?? []) as SubRow[];
-      if (!subRows.length) { skipped.push(`${p.user_id}:no-subs`); continue; }
+      if (!subRows.length) {
+        skipped.push(`${p.user_id}:no-subs`);
+        continue;
+      }
 
       const title = p.locale === 'en' ? 'Frost alert' : 'Frostvarsel';
       const body =
@@ -79,7 +103,7 @@ export async function GET() {
         try {
           await sendPushToEndpoint(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            { title, body, url: "/dashboard?alert=frost", tag: "frost" }
+            { title, body, url: '/dashboard?alert=frost', tag: 'frost' },
           );
           sent++; // kom hertil = succes (2xx)
         } catch (err: any) {
@@ -87,12 +111,12 @@ export async function GET() {
           // 404/410 = endpoint findes ikke længere -> slet subscription
           if (code === 404 || code === 410) {
             await supabase
-              .from("push_subscriptions")
+              .from('push_subscriptions')
               .delete()
-              .eq("endpoint", s.endpoint);
+              .eq('endpoint', s.endpoint);
           } else {
             // andre fejl: log og fortsæt
-            console.error("push error:", code, err?.body || err?.message || err);
+            console.info('push error:', code, err?.body || err?.message || err);
           }
         }
       }

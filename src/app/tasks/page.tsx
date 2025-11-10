@@ -1,201 +1,305 @@
-'use client'
+'use client';
 
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
-import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import supabaseBrowser from '@/lib/supabaseBrowser';
 
 type TaskRow = {
-  id: string
-  user_id: string
-  crop_id: string | null
-  type: 'sow'|'transplant'|'fertilize'|'prune'|'water'|'harvest'|'other'
-  due_date: string            // YYYY-MM-DD
-  status: 'pending'|'done'|'skipped'
-  notes: string | null
-  crops?: { name: string } | null // vi henter navn via select relation
+  id: string;
+  user_id: string;
+  title: string | null;
+  note: string | null;
+  due_at: string | null;
+  created_at: string;
+  // Én af disse (eller begge) findes typisk – ret hvis dine felter hedder andet:
+  done_at: string | null; // ← tilpas evt. navn
+  completed_at: string | null; // ← tilpas evt. navn
+};
+
+type TabKey = 'open' | 'done';
+
+function isDone(t: TaskRow) {
+  // Opdater denne ifm. dit faktiske skema (hvis kun 'done_at' findes så brug den alene)
+  return Boolean(t.done_at || t.completed_at);
 }
 
-type TabKey = 'today'|'week'|'overdue'|'all'
+function formatDate(iso: string | null) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('da-DK', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export default function TasksPage() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
-  const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [tasks, setTasks] = useState<TaskRow[]>([])
-  const [active, setActive] = useState<TabKey>('today')
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const supabase = useMemo(() => supabaseBrowser(), []);
+  const [tab, setTab] = useState<TabKey>('open');
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [rows, setRows] = useState<TaskRow[]>([]);
 
-  // utils
-  const todayStr = () => new Date().toISOString().slice(0,10)
-  const startOfWeekStr = () => {
-    const d = new Date()
-    const day = d.getDay() || 7 // søn=0 -> 7
-    d.setHours(0,0,0,0)
-    d.setDate(d.getDate() - (day - 1)) // mandag
-    return d.toISOString().slice(0,10)
-  }
-  const endOfWeekStr = () => {
-    const d = new Date(startOfWeekStr())
-    d.setDate(d.getDate() + 6) // søndag
-    return d.toISOString().slice(0,10)
-  }
+  // Henter opgaver for den aktuelle bruger
+  const load = useCallback(async () => {
+    setErr(null);
+    setLoading(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const uid = session.session?.user.id;
+      if (!uid) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
 
-  const load = async () => {
-    setLoading(true)
-    const { data: session } = await supabase.auth.getSession()
-    const uid = session.session?.user.id || null
-    if (!uid) { setUserId(null); setTasks([]); setLoading(false); return }
-    setUserId(uid)
+      // Basis-select – begræns felter for hastighed
+      const baseSelect =
+        'id, user_id, title, note, due_at, created_at, done_at, completed_at';
 
-    // Hent alle tasks for brugeren + crop-navn (relation alias: crops)
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('id, user_id, crop_id, type, due_date, status, notes, crops(name)')
-      .eq('user_id', uid)
-      .order('due_date', { ascending: true })
-    if (error) { console.error(error); setTasks([]); setLoading(false); return }
+      let q = supabase
+        .from('plant_tasks' as any)
+        .select(baseSelect)
+        .eq('user_id', uid)
+        .order('due_at', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
 
-    setTasks(
-      (data as any[]).map(row => ({
-        ...row,
-        crops: row.crops && Array.isArray(row.crops) && row.crops.length > 0
-          ? { name: String(row.crops[0].name) }
-          : null
-      }))
-    )
-    setLoading(false)
-  }
+      if (tab === 'open') {
+        // ÅBNE = ikke-færdige
+        q = q.or('done_at.is.null,completed_at.is.null');
+      } else {
+        // FÆRDIGE = mindst én er sat
+        q = q.or('done_at.not.is.null,completed_at.not.is.null');
+      }
 
-  useEffect(() => { load() }, []) // supabase er memoized
+      const { data, error } = await q;
+      if (error) throw error;
 
-  // Filtrering til tabs
-  const filtered = (() => {
-    const t = tasks.filter(t => t.status === 'pending') // vis kun åbne
-    const today = todayStr()
-    if (active === 'all') return t
-    if (active === 'today') return t.filter(x => x.due_date === today)
-    if (active === 'week') {
-      const s = startOfWeekStr(), e = endOfWeekStr()
-      return t.filter(x => x.due_date >= s && x.due_date <= e)
+      setRows((data || []) as TaskRow[]);
+    } catch (e: any) {
+      setErr(e?.message || 'Kunne ikke hente opgaver.');
+      setRows([]);
+    } finally {
+      setLoading(false);
     }
-    if (active === 'overdue') return t.filter(x => x.due_date < today)
-    return t
-  })()
+  }, [supabase, tab]);
 
-  const counts = {
-    today: tasks.filter(t => t.status === 'pending' && t.due_date === todayStr()).length,
-    week: (() => {
-      const s = startOfWeekStr(), e = endOfWeekStr()
-      return tasks.filter(t => t.status === 'pending' && t.due_date >= s && t.due_date <= e).length
-    })(),
-    overdue: tasks.filter(t => t.status === 'pending' && t.due_date < todayStr()).length,
-    all: tasks.filter(t => t.status === 'pending').length
-  }
+  // Initial + når tab ændrer sig
+  useEffect(() => {
+    let alive = true;
+    const run = async () => {
+      if (!alive) return;
+      await load();
+    };
+    // asynkront kick for at undgå “set-state-in-effect”-reglen
+    const t = setTimeout(() => {
+      void run();
+    }, 0);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [load]);
 
-  const markDone = async (id: string) => {
-    setUpdatingId(id)
-    try {
-      const { error } = await supabase.from('tasks').update({ status: 'done' }).eq('id', id)
-      if (error) throw error
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'done' } as TaskRow : t))
-    } catch (e) {
-      console.error(e); alert('Kunne ikke markere som udført.')
-    } finally { setUpdatingId(null) }
-  }
+  // Markér som færdig
+  const markDone = useCallback(
+    async (id: string) => {
+      try {
+        // Vælg det felt du reelt bruger til “færdig” (done_at eller completed_at)
+        const payload = { done_at: new Date().toISOString() }; // ← ret hvis dit felt er 'completed_at'
+        const { error } = await supabase
+          .from('plant_tasks' as any)
+          .update(payload)
+          .eq('id', id);
+        if (error) throw error;
 
-  const snoozeToTomorrow = async (id: string) => {
-    setUpdatingId(id)
-    try {
-      const t = tasks.find(x => x.id === id)
-      if (!t) return
-      const d = new Date(t.due_date); d.setDate(d.getDate() + 1)
-      const newDate = d.toISOString().slice(0,10)
-      const { error } = await supabase.from('tasks').update({ due_date: newDate }).eq('id', id)
-      if (error) throw error
-      setTasks(prev => prev.map(x => x.id === id ? { ...x, due_date: newDate } as TaskRow : x))
-    } catch (e) {
-      console.error(e); alert('Kunne ikke skubbe opgaven.')
-    } finally { setUpdatingId(null) }
-  }
+        // Optimistisk opdatering
+        setRows((prev) =>
+          prev.map((t) =>
+            t.id === id
+              ? { ...t, ...payload, completed_at: t.completed_at }
+              : t,
+          ),
+        );
+      } catch (e: any) {
+        alert(e?.message || 'Kunne ikke markere som færdig.');
+      }
+    },
+    [supabase],
+  );
 
-  if (loading) return <div className="opacity-60 p-4">Indlæser opgaver…</div>
-  if (!userId) return <div className="p-4">Log ind for at se dine opgaver.</div>
+  // Fortryd færdig (åbn den igen)
+  const uncomplete = useCallback(
+    async (id: string) => {
+      try {
+        // Nulstil begge for robusthed – ret, hvis du kun har ét felt
+        const payload = { done_at: null, completed_at: null };
+        const { error } = await supabase
+          .from('plant_tasks' as any)
+          .update(payload)
+          .eq('id', id);
+        if (error) throw error;
 
-  const TabBtn = ({k, label}:{k:TabKey; label:string}) => (
-    <button
-      onClick={() => setActive(k)}
-      className={[
-        'px-3 py-2 rounded-full text-sm border',
-        active===k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-900 border-slate-200'
-      ].join(' ')}
-    >
-      {label}
-      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-900">{counts[k]}</span>
-    </button>
-  )
+        setRows((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, ...payload } : t)),
+        );
+      } catch (e: any) {
+        alert(e?.message || 'Kunne ikke fortryde.');
+      }
+    },
+    [supabase],
+  );
+
+  // Snooze +1 dag (valgfrit – brug hvis du har due_at)
+  const snooze = useCallback(
+    async (id: string, days = 1) => {
+      try {
+        const t = rows.find((r) => r.id === id);
+        const from = t?.due_at ? new Date(t.due_at) : new Date();
+        const next = new Date(from.getTime() + days * 24 * 3600 * 1000);
+        const payload = { due_at: next.toISOString() };
+        const { error } = await supabase
+          .from('plant_tasks' as any)
+          .update(payload)
+          .eq('id', id);
+        if (error) throw error;
+
+        setRows((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, due_at: payload.due_at } : r)),
+        );
+      } catch (e: any) {
+        alert(e?.message || 'Kunne ikke udskyde.');
+      }
+    },
+    [rows, supabase],
+  );
 
   return (
-    <div className="space-y-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Opgaver</h1>
-          <p className="text-sm opacity-70">Hold styr på hvad der skal gøres – i dag, denne uge og det forsinkede.</p>
-        </div>
-        <div className="text-right">
-          <div className="text-sm">Åbne i alt</div>
-          <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-slate-900 text-white text-sm">
-            {counts.all}
-          </div>
-        </div>
+    <main className="max-w-3xl mx-auto p-4 md:p-6">
+      <header className="mb-4">
+        <h1 className="text-xl font-semibold">Opgaver</h1>
+        <p className="text-sm opacity-70">
+          Se og håndtér dine dyrkningsopgaver for dine afgrøder.
+        </p>
       </header>
 
-      <nav className="flex flex-wrap gap-2">
-        <TabBtn k="today" label="I dag" />
-        <TabBtn k="week" label="Denne uge" />
-        <TabBtn k="overdue" label="Forsinkede" />
-        <TabBtn k="all" label="Alle" />
-      </nav>
+      {/* Tabs */}
+      <div className="inline-flex rounded-lg ring-1 ring-slate-200 bg-white overflow-hidden mb-4">
+        {(['open', 'done'] as TabKey[]).map((k) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={[
+              'px-3 py-1.5 text-sm',
+              tab === k ? 'bg-slate-900 text-white' : 'text-slate-700',
+            ].join(' ')}
+            type="button"
+          >
+            {k === 'open' ? 'Åbne' : 'Færdige'}
+          </button>
+        ))}
+      </div>
 
-      {!filtered.length && (
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
-          <p className="text-sm">Ingen opgaver i denne kategori. Gå til <Link className="underline" href="/crops">Katalog</Link> og tilføj/åbn afgrøder.</p>
+      {/* Fejl */}
+      {err && (
+        <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 p-3 text-sm">
+          {err}
         </div>
       )}
 
-      <ul className="grid gap-3">
-        {filtered.map(t => (
-          <li key={t.id} className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-sm opacity-60">{t.due_date}</div>
-                <div className="font-medium capitalize">{t.type}</div>
-                {t.crops?.name && (
-                  <div className="text-sm">
-                    Afgrøde: <Link href={`/crops/${t.crop_id}`} className="underline decoration-slate-300 hover:decoration-slate-900">{t.crops.name}</Link>
+      {/* Loading */}
+      {loading && (
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4 text-sm opacity-70">
+          Indlæser opgaver…
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !err && rows.length === 0 && (
+        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-6">
+          <p className="text-sm">
+            {tab === 'open'
+              ? 'Du har ingen åbne opgaver. Godt gået! 🎉'
+              : 'Ingen færdige opgaver endnu.'}
+          </p>
+        </div>
+      )}
+
+      {/* Liste */}
+      {!loading && !err && rows.length > 0 && (
+        <ul className="space-y-2">
+          {rows.map((t) => {
+            const done = isDone(t);
+            return (
+              <li
+                key={t.id}
+                className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 p-3 flex items-start gap-3"
+              >
+                <div className="pt-1">
+                  <input
+                    type="checkbox"
+                    checked={done}
+                    onChange={() => (done ? uncomplete(t.id) : markDone(t.id))}
+                    aria-label={done ? 'Fortryd færdig' : 'Markér som færdig'}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">
+                    {t.title || 'Opgave'}
+                    {t.due_at && (
+                      <span className="ml-2 text-xs rounded px-1.5 py-0.5 bg-slate-100">
+                        Forfald: {formatDate(t.due_at)}
+                      </span>
+                    )}
                   </div>
-                )}
-                {t.notes && <div className="text-sm opacity-80 mt-1">{t.notes}</div>}
-              </div>
-              <div className="flex flex-col gap-2 min-w-[200px] items-end">
-                <button
-                  onClick={() => markDone(t.id)}
-                  disabled={updatingId === t.id}
-                  className="px-3 py-2 rounded bg-slate-900 text-white text-xs"
-                >
-                  {updatingId === t.id ? 'Opdaterer…' : 'Markér som udført'}
-                </button>
-                <button
-                  onClick={() => snoozeToTomorrow(t.id)}
-                  disabled={updatingId === t.id}
-                  className="px-3 py-2 rounded border border-slate-300 text-slate-900 text-xs hover:bg-slate-50"
-                >
-                  Skub til i morgen
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
+                  {t.note && (
+                    <div className="text-sm opacity-80 whitespace-pre-wrap">
+                      {t.note}
+                    </div>
+                  )}
+                  <div className="text-xs opacity-60 mt-1">
+                    Oprettet: {formatDate(t.created_at)}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!done && (
+                    <>
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 rounded border hover:bg-slate-50"
+                        onClick={() => snooze(t.id, 1)}
+                        title="Udskyd 1 dag"
+                      >
+                        +1 dag
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 rounded border hover:bg-slate-50"
+                        onClick={() => snooze(t.id, 7)}
+                        title="Udskyd 7 dage"
+                      >
+                        +7 dage
+                      </button>
+                    </>
+                  )}
+                  {done && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-600 text-white">
+                      Færdig
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </main>
+  );
 }

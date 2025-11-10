@@ -2,44 +2,52 @@
 
 import { useEffect } from 'react';
 
-/**
- * Registrerer service worker KUN i browseren og KUN i produktion.
- * Sikker mod SSR, og støjer ikke i dev (hot reload).
- */
 export default function ClientSW() {
   useEffect(() => {
-    // Kun i browseren + kun i production-builds
+    // KUN i browser + KUN i prod
     if (
-      typeof window !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      process.env.NODE_ENV === 'production'
+      typeof window === 'undefined' ||
+      !('serviceWorker' in navigator) ||
+      process.env.NODE_ENV !== 'production'
     ) {
-      const register = async () => {
-        try {
-          const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-
-          // (Valgfrit) auto-refresh når ny SW er klar:
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            if (!newWorker) return;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // Ny version er klar. Her kan du vise en toast eller auto-reloade:
-                // window.location.reload();
-                // Eller emitte en custom event som din UI kan lytte på.
-                console.info('[SW] Ny version klar (installeret).');
-              }
-            });
-          });
-        } catch (err) {
-          console.error('[SW] Registrering fejlede:', err);
-        }
-      };
-
-      // Vent til page-load for at undgå race med Next routing
-      if (document.readyState === 'complete') register();
-      else window.addEventListener('load', register, { once: true });
+      return;
     }
+
+    const register = async () => {
+      try {
+        // Tjek at sw.js faktisk kan hentes og er en gyldig JS-fil
+        const res = await fetch('/sw.js', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`SW fetch failed: ${res.status}`);
+        const text = await res.clone().text();
+        if (!text || text.includes('<!DOCTYPE')) {
+          throw new Error(
+            'SW looks like HTML, not JS (wrong path or dev build)',
+          );
+        }
+
+        const reg = await navigator.serviceWorker.register('/sw.js', {
+          scope: '/',
+        });
+
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          nw?.addEventListener('statechange', () => {
+            if (
+              nw.state === 'installed' &&
+              navigator.serviceWorker.controller
+            ) {
+              console.info('[SW] New version installed.');
+              // evt. vis toast / soft reload
+            }
+          });
+        });
+      } catch (err) {
+        console.info('[SW] Registration skipped:', err);
+      }
+    };
+
+    if (document.readyState === 'complete') register();
+    else window.addEventListener('load', register, { once: true });
   }, []);
 
   return null;

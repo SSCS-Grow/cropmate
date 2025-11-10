@@ -1,10 +1,12 @@
-import type { NextConfig } from 'next';
+// next.config.ts
+import type { NextConfig } from 'next'
 
-const nextConfig = {
-  typedRoutes: false, // ← her
+const nextConfig: NextConfig = {
+  typedRoutes: false, // ✅ korrekt placering
   eslint: { ignoreDuringBuilds: true, dirs: [] },
-  turbopack: { root: process.cwd() }, // absolut sti
+  turbopack: { root: process.cwd() },
   outputFileTracingRoot: process.cwd(),
+
   images: {
     remotePatterns: [
       {
@@ -12,13 +14,15 @@ const nextConfig = {
         hostname: '**.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
-      // evt. map-tiles CDN:
-      { protocol: 'https', hostname: '*.tile.openstreetmap.org', pathname: '/**' },
+      {
+        protocol: 'https',
+        hostname: '*.tile.openstreetmap.org',
+        pathname: '/**',
+      },
     ],
   },
+
   reactStrictMode: true,
-  experimental: {
-    // hvis I bruger typedRoutes etc. — bevar jeres eksisterende
-  },
-};
-export default nextConfig;
+}
+
+export default nextConfig

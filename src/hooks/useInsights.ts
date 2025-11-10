@@ -1,43 +1,60 @@
-// src/hooks/useInsights.ts
-'use client'
+import { useEffect, useMemo, useState } from 'react';
 
-import { useEffect, useState } from 'react'
+type Params = {
+  bbox?: [number, number, number, number]; // west,south,east,north
+  days?: number;
+};
 
-export type Insight = {
-  hazard: string
-  recent: number
-  previous: number
-  trendPct: number
-  message: string
-  severity: 'low' | 'medium' | 'high'
-  suggestion: string
-}
+type InsightPoint = {
+  t: string; // ISO
+  v: number; // value
+};
 
-export function useInsights(params?: { bbox?: [number, number, number, number]; days?: number }) {
-  const [data, setData] = useState<{ insights: Insight[]; meta: any } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+export default function useInsights(params: Params = {}) {
+  const [data, setData] = useState<InsightPoint[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const bboxKey = params?.bbox ? params.bbox.join(',') : '';
+  const daysKey = params?.days ?? '';
+
+  const url = useMemo(() => {
+    const u = new URL('/api/analytics/timeseries', location.origin);
+    if (bboxKey) u.searchParams.set('bbox', bboxKey);
+    if (daysKey !== '') u.searchParams.set('days', String(daysKey));
+    return u.toString();
+  }, [bboxKey, daysKey]);
 
   useEffect(() => {
-    const u = new URL('/api/insights', window.location.origin)
-    if (params?.bbox) u.searchParams.set('bbox', params.bbox.join(','))
-    if (params?.days) u.searchParams.set('days', String(params.days))
+    let alive = true;
+    setError(null);
+    setData(null);
+    setLoading(true); // det er ok at sætte her – vi ændrer state pga. param-ændring
 
-    setLoading(true)
-    fetch(u.toString())
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text())
-        return r.json()
-      })
-      .then((j) => {
-        setData(j)
-        setLoading(false)
-      })
-      .catch((e) => {
-        setError(e as Error)
-        setLoading(false)
-      })
-  }, [params?.bbox?.join(','), params?.days])
+    const run = async () => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(await r.text());
+        const json = (await r.json()) as InsightPoint[];
+        if (!alive) return;
+        setData(json);
+        setLoading(false);
+      } catch (e: any) {
+        if (!alive) return;
+        setError(e?.message || 'Kunne ikke hente data');
+        setLoading(false);
+      }
+    };
 
-  return { data, loading, error }
+    // asynkront kick
+    const t = setTimeout(() => {
+      void run();
+    }, 0);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [url]);
+
+  return { data, loading, error };
 }

@@ -1,16 +1,25 @@
-'use client'
-import { useSearchParams } from 'next/navigation'
+'use client';
+import { useSearchParams } from 'next/navigation';
+import { useMemo } from 'react';
 
 export default function ExportButton() {
-  const sp = useSearchParams()
-  const start = sp.get('start') ?? new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)
-  const end = sp.get('end') ?? new Date().toISOString().slice(0, 10)
-  const type = sp.get('type') ?? ''
+  const sp = useSearchParams();
 
-  const params = new URLSearchParams({ start, end })
-  if (type) params.set('type', type)
+  const { startDefault, endDefault } = useMemo(() => {
+    const today = new Date();
+    const start = new Date(today.getTime() - 30 * 864e5);
+    return {
+      startDefault: start.toISOString().slice(0, 10),
+      endDefault: today.toISOString().slice(0, 10),
+    };
+  }, []);
 
-  const href = `/api/analytics/export?${params.toString()}`
+  const start = sp.get('start') ?? startDefault;
+  const end = sp.get('end') ?? endDefault;
+
+  const params = new URLSearchParams({ start, end });
+
+  const href = `/api/analytics/export?${params.toString()}`;
 
   return (
     <a
@@ -20,5 +29,5 @@ export default function ExportButton() {
       <span>⬇</span>
       <span>Export CSV</span>
     </a>
-  )
+  );
 }

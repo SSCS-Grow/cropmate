@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 async function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -12,13 +12,14 @@ async function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function EnablePushButton() {
-  const [supported, setSupported] = useState(false);
-  const [status, setStatus] = useState<'idle'|'on'|'off'|'loading'>('idle');
+  const [supported] = useState<boolean>(
+    () =>
+      'serviceWorker' in navigator &&
+      'PushManager' in window &&
+      'Notification' in window,
+  );
 
-  useEffect(() => {
-    setSupported('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
-  }, []);
-
+  const [status, setStatus] = useState<'off' | 'loading' | 'on'>('off');
   const enable = async () => {
     try {
       setStatus('loading');
@@ -27,20 +28,20 @@ export default function EnablePushButton() {
       const { publicKey } = await res.json();
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: await urlBase64ToUint8Array(publicKey)
+        applicationServerKey: await urlBase64ToUint8Array(publicKey),
       });
       await fetch('/api/push/subscribe', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           endpoint: sub.endpoint,
           keys: sub.toJSON().keys,
-          userAgent: navigator.userAgent
-        })
+          userAgent: navigator.userAgent,
+        }),
       });
       setStatus('on');
     } catch (e) {
-      console.error(e);
+      console.info(e);
       setStatus('off');
     }
   };
@@ -51,9 +52,13 @@ export default function EnablePushButton() {
     <button
       onClick={enable}
       className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
-      disabled={status==='loading'}
+      disabled={status === 'loading'}
     >
-      {status==='loading' ? 'Aktiverer…' : status==='on' ? 'Push er aktiveret ✅' : 'Aktivér push-notifikationer'}
+      {status === 'loading'
+        ? 'Aktiverer…'
+        : status === 'on'
+        ? 'Push er aktiveret ✅'
+        : 'Aktivér push-notifikationer'}
     </button>
   );
 }

@@ -5,7 +5,7 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 export function createClient(): SupabaseClient {
   // Nogle Next-typer siger cookies(): Promise<ReadonlyRequestCookies>.
   // Vi kalder den via any for at holde funktionen synkron.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const cookieStore: any = (cookies as unknown as () => any)();
 
   return createServerClient(

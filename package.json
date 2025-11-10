@@ -6,7 +6,15 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "supabase:types": "supabase gen types typescript --linked > src/types/database.types.ts",
+    "db:push": "supabase db push --linked",
+    "db:diff": "supabase db diff --linked --schema public -f $(date +\"%Y%m%d-%H%M%S\")",
+    "clean": "rm -rf .next",
+    "deadcode": "ts-prune | Out-File -Encoding utf8 ts-prune.txt",
+    "size": "size-limit",
+    "size-limit": "size-limit"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.22.0",
@@ -21,6 +29,7 @@
     "leaflet.heat": "^0.2.0",
     "lucide-react": "^0.541.0",
     "next": "15.5.0",
+    "posthog-js": "^1.284.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
@@ -32,6 +41,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@next/eslint-plugin-next": "^16.0.1",
+    "@size-limit/file": "^11.2.0",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.20",
     "@types/node": "^20.19.19",
@@ -39,10 +50,17 @@
     "@types/react-dom": "^19",
     "@types/supercluster": "^7.1.3",
     "@types/web-push": "^3.6.4",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/parser": "^8.46.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^16.5.0",
+    "size-limit": "^11.2.0",
     "supabase": "^2.51.0",
     "tailwindcss": "^4",
+    "ts-prune": "^0.10.3",
     "typescript": "^5"
   }
 }

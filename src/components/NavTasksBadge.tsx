@@ -1,71 +1,88 @@
-'use client'
+'use client';
 
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import supabaseBrowser from '@/lib/supabaseBrowser';
 
+/**
+ * Badge med antal åbne opgaver for den aktuelle bruger.
+ * Skjuler sig selv hvis ikke logget ind eller count <= 0.
+ */
 export default function NavTasksBadge() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
-  const [count, setCount] = useState<number | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
+  const supabase = useMemo(() => supabaseBrowser(), []);
+  const [count, setCount] = useState<number | null>(null);
 
-  async function refresh() {
-    // Kræv login
-    const { data: session } = await supabase.auth.getSession()
-    const uid = session.session?.user.id || null
-    setUserId(uid)
-    if (!uid) { setCount(null); return }
+  const refresh = useCallback(async () => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const uid = session.session?.user.id;
+      if (!uid) {
+        setCount(null);
+        return;
+      }
 
-    // Kun antal, ingen rækker:
-    const { count, error } = await supabase
-      .from('tasks')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', uid)
-      .eq('status', 'pending')
+      const { count: openCount, error } = await supabase
+        .from('plant_tasks' as any)
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        // “åben” = ikke afsluttet i enten done_at eller completed_at
+        .or('done_at.is.null,completed_at.is.null');
 
-    if (!error) setCount(count ?? 0)
-  }
+      if (error) {
+        setCount(null);
+        return;
+      }
+      setCount(typeof openCount === 'number' ? openCount : 0);
+    } catch {
+      setCount(null);
+    }
+  }, [supabase]);
 
+  // Initial load + refresh ved tab-visibilitet (asynkront kick)
   useEffect(() => {
-    refresh()
+    let cancelled = false;
+    const run = async () => {
+      if (!cancelled) await refresh();
+    };
 
-    // Opdater ved faneskift/visibilitet (når man vender tilbage til tabben)
-    const onVis = () => { if (document.visibilityState === 'visible') refresh() }
-    document.addEventListener('visibilitychange', onVis)
+    const t = setTimeout(() => {
+      void run();
+    }, 0);
 
-    // Realtime: lyt efter ændringer i tasks for denne bruger
-    // (supabase realtime skal være slået til i projektet)
-    let channel: ReturnType<typeof supabase.channel> | null = null
-    ;(async () => {
-      const { data: session } = await supabase.auth.getSession()
-      const uid = session.session?.user.id
-      if (!uid) return
-      channel = supabase
-        .channel('nav_tasks_badge')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'tasks', filter: `user_id=eq.${uid}` },
-          () => refresh()
-        )
-        .subscribe()
-    })()
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void run();
+    };
+    document.addEventListener('visibilitychange', onVis);
 
     return () => {
-      document.removeEventListener('visibilitychange', onVis)
-      if (channel) supabase.removeChannel(channel)
-    }
-  }, [supabase])
+      cancelled = true;
+      clearTimeout(t);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [refresh]);
 
-  // Ikke logget ind → vis ikke badge
-  if (!userId) return null
+  // Opdater ved login/logout
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      setTimeout(() => {
+        void refresh();
+      }, 0);
+    });
+    return () => {
+      sub.subscription?.unsubscribe();
+    };
+  }, [supabase, refresh]);
+
+  if (count == null || count <= 0) return null;
+
+  const text = count > 99 ? '99+' : String(count);
 
   return (
     <span
-      className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs
-                 bg-slate-900 text-white align-middle"
-      aria-label="Antal åbne opgaver"
-      title="Åbne opgaver"
+      className="ml-2 inline-flex min-w-[20px] h-[20px] items-center justify-center rounded-full bg-emerald-600 text-white text-[11px] px-1.5 leading-none"
+      aria-label={`${text} åbne opgaver`}
+      title={`${text} åbne opgaver`}
     >
-      {count ?? '…'}
+      {text}
     </span>
-  )
+  );
 }

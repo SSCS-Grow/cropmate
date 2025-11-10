@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 
 async function fetchOpenMeteo(lat: number, lon: number) {
   // UTC så vores timestamper matcher
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     `&hourly=temperature_2m,precipitation,wind_speed_10m&timezone=UTC&past_hours=0&forecast_days=3`;
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
@@ -18,7 +19,9 @@ async function fetchOpenMeteo(lat: number, lon: number) {
     ts: new Date(ts).toISOString(),
     temp_c: Number.isFinite(temp[i]) ? temp[i] : null,
     precip_mm: Number.isFinite(precip[i]) ? precip[i] : null,
-    wind_ms: Number.isFinite(wind[i]) ? wind[i] / 3.6 : null, // km/h -> m/s
+    wind_ms: Number.isFinite(Number(wind?.[i]))
+      ? Number(wind?.[i]) / 3.6
+      : null, // km/h -> m/s
   }));
   return rows;
 }
@@ -57,9 +60,13 @@ export async function GET() {
       }
     } catch (e: any) {
       // Fortsæt med de andre haver
-      console.error('weather error', g.id, e?.message);
+      console.info('weather cron error', e);
     }
   }
 
-  return NextResponse.json({ ok: true, gardens: (gardens ?? []).length, upserts });
+  return NextResponse.json({
+    ok: true,
+    gardens: (gardens ?? []).length,
+    upserts,
+  });
 }
