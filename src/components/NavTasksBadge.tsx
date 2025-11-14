@@ -1,16 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import supabaseBrowser from '@/lib/supabaseBrowser';
+import { useCallback, useEffect, useState } from 'react';
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser';
 
 /**
  * Badge med antal åbne opgaver for den aktuelle bruger.
  * Skjuler sig selv hvis ikke logget ind eller count <= 0.
  */
 export default function NavTasksBadge() {
-  const supabase = useMemo(() => {
-    return typeof window === 'undefined' ? null : supabaseBrowser();
-  }, []);
+  const supabase = useSupabaseBrowser();
   const [count, setCount] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {

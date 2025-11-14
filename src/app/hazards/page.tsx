@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 import Link from 'next/link'
 
 type HazardRow = {
@@ -17,9 +17,7 @@ type WatchRow = { hazard_id: string }
 type ReportRow = { hazard_id: string }
 
 export default function HazardListPage() {
-  const [supabase] = useState(() =>
-    typeof window === 'undefined' ? null : supabaseBrowser(),
-  )
+  const supabase = useSupabaseBrowser()
 
   // Data
   const [hazards, setHazards] = useState<HazardRow[]>([])

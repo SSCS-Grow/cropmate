@@ -1,9 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import supabaseBrowser from '@/lib/supabaseBrowser';
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser';
 import Link from 'next/link';
 
 type Crop = { id: string; name: string };
@@ -21,7 +21,7 @@ type LogRow = {
 export default function CropLogsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useSupabaseBrowser();
   const [userId, setUserId] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop | null>(null);
   const [logs, setLogs] = useState<LogRow[]>([]);
@@ -33,6 +33,7 @@ export default function CropLogsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!supabase) return;
     let alive = true;
     (async () => {
       setLoading(true);
@@ -98,6 +99,7 @@ export default function CropLogsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) return;
     if (!userId || !crop) return;
     if (!note && !file) {
       alert('Skriv en note eller vælg et billede.');

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import supabaseBrowser from '@/lib/supabaseBrowser';
+import { useEffect, useState } from 'react';
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser';
 
 type CropOpt = { crop_id: string; name: string };
 
@@ -31,7 +31,7 @@ function toCsv(rows: Array<Record<string, any>>): string {
 }
 
 export default function HazardCsvExport({ hazardId }: { hazardId: string }) {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useSupabaseBrowser();
   const today = new Date();
   const defaultFrom = new Date(Date.now() - 30 * 24 * 3600 * 1000);
 
@@ -47,6 +47,7 @@ export default function HazardCsvExport({ hazardId }: { hazardId: string }) {
 
   // Hent distinct afgrøder til dropdown (for den pågældende hazard)
   useEffect(() => {
+    if (!supabase) return;
     let alive = true;
     (async () => {
       const { data, error } = await supabase
@@ -92,6 +93,7 @@ export default function HazardCsvExport({ hazardId }: { hazardId: string }) {
   }
 
   async function handleExport(allFiltered: boolean) {
+    if (!supabase) return;
     let rows: any[] = [];
     try {
       setLoading(true);

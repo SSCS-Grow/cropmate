@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 
 type MyCrop = { crop_id: string; crops: { name: string } | null }
 type Props = { hazardId: string }
 
 export default function ReportWizard({ hazardId }: Props) {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useSupabaseBrowser()
   const [myCrops, setMyCrops] = useState<MyCrop[]>([])
   const [lat, setLat] = useState<number | null>(null)
   const [lng, setLng] = useState<number | null>(null)
@@ -21,6 +21,7 @@ export default function ReportWizard({ hazardId }: Props) {
   const [msg, setMsg] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       const { data: session } = await supabase.auth.getSession()
@@ -78,6 +79,7 @@ export default function ReportWizard({ hazardId }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setMsg(null)
+    if (!supabase) return
     if (!hazardId) { setMsg('Ukendt trussel.'); return }
     if (!cropId)   { setMsg('Vælg en af dine afgrøder.'); return }
 

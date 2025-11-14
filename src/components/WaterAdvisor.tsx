@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 
 type ProfileRow = { latitude: number | null; longitude: number | null }
 
@@ -13,7 +13,7 @@ type Advice = {
 }
 
 export default function WaterAdvisor() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useSupabaseBrowser()
   const [loading, setLoading] = useState(true)
   const [coords, setCoords] = useState<{ lat:number; lon:number } | null>(null)
   const [advice, setAdvice] = useState<Advice | null>(null)
@@ -24,6 +24,7 @@ export default function WaterAdvisor() {
   const todayStr = () => new Date().toISOString().slice(0,10)
 
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       setLoading(true)
@@ -122,6 +123,7 @@ export default function WaterAdvisor() {
   }, [supabase])
 
   const createWaterTasksToday = async () => {
+    if (!supabase) return
     setCreating(true)
     setCreatedCount(null)
     try {

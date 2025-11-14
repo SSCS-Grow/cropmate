@@ -2,13 +2,13 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import supabaseBrowser from '../lib/supabaseBrowser' // eller '../lib/supabaseBrowser' hvis du ikke har alias
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import type { Session } from '@supabase/supabase-js' // kun Session bruges
 
 export default function Home() {
-  const supabase = typeof window === 'undefined' ? null : supabaseBrowser()
+  const supabase = useSupabaseBrowser()
   const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {

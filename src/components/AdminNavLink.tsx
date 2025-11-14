@@ -1,13 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 
 export default function AdminNavLink() {
-  const supabase = useMemo(() => {
-    return typeof window === 'undefined' ? null : supabaseBrowser()
-  }, [])
+  const supabase = useSupabaseBrowser()
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {

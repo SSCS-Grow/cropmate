@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import supabaseBrowser from '@/lib/supabaseBrowser';
+import { useEffect, useState } from 'react';
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser';
 
 type ProfileRow = { latitude: number | null; longitude: number | null };
 
@@ -14,7 +14,7 @@ type Weather = {
 };
 
 export default function WeatherCard() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useSupabaseBrowser();
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(
     null,
   );
@@ -23,6 +23,7 @@ export default function WeatherCard() {
   const [frostRisk, setFrostRisk] = useState(false);
 
   useEffect(() => {
+    if (!supabase) return;
     let alive = true;
     (async () => {
       setLoading(true);

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 
 type UserCropRow = {
   id: string
@@ -24,7 +24,7 @@ type SupabaseSession =
   | { session: null }
 
 export default function MyGardenPage() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useSupabaseBrowser()
 
   const [loading, setLoading] = useState(true)
   const [loggedIn, setLoggedIn] = useState(false)
@@ -42,6 +42,7 @@ export default function MyGardenPage() {
   const [bulkGenMsg, setBulkGenMsg] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       setLoading(true)
@@ -85,6 +86,7 @@ export default function MyGardenPage() {
   }, [supabase])
 
   const handleToggle = async (uc: UserCropRow, next: boolean) => {
+    if (!supabase) return
     setSavingId(uc.id)
     // Optimistisk UI
     setRows(prev => prev.map(r => (r.id === uc.id ? { ...r, auto_water: next } : r)))
@@ -111,6 +113,7 @@ export default function MyGardenPage() {
   })
 
   async function generateForAll() {
+    if (!supabase) return
     try {
       setBulkGenLoading(true)
       setBulkGenMsg(null)

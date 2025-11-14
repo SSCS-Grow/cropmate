@@ -5,7 +5,7 @@ import Image from "next/image";
 import clsx from "clsx";
 import { Loader2, Save, Leaf, Sparkles, AlertTriangle, Camera } from "lucide-react";
 import useAuthSession from "@/hooks/useAuthSession";
-import supabaseBrowser from "@/lib/supabaseBrowser";
+import useSupabaseBrowser from "@/hooks/useSupabaseBrowser";
 
 const styleOptions = [
   {
@@ -31,9 +31,7 @@ const styleOptions = [
 ];
 
 export default function DiagnosePage() {
-  const [supabase] = useState(() =>
-    typeof window === "undefined" ? null : supabaseBrowser(),
-  );
+  const supabase = useSupabaseBrowser();
   const { session, loading: authLoading } = useAuthSession();
 
   const [plant, setPlant] = useState("");

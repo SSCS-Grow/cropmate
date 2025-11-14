@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 import Link from 'next/link'
 
 type Crop = {
@@ -30,7 +30,7 @@ export default function CropDetailPage() {
   const params = useParams<{ id: string }>()
   const cropId = params.id
   const router = useRouter()
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useSupabaseBrowser()
 
   const [loading, setLoading] = useState(true)
   const [crop, setCrop] = useState<Crop | null>(null)
@@ -46,6 +46,7 @@ export default function CropDetailPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       setLoading(true)
@@ -92,6 +93,7 @@ export default function CropDetailPage() {
   }, [supabase, cropId])
 
   async function addToMyGarden() {
+    if (!supabase) return
     if (!userId || !crop) return
     setAdding(true)
     setGenMsg(null)
@@ -117,6 +119,7 @@ export default function CropDetailPage() {
   }
 
   async function generateTasks() {
+    if (!supabase) return
     if (!userCrop) return
     setGenLoading(true)
     setGenMsg(null)

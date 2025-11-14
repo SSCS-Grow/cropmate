@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import React, { use, useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import React, { use, useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 import HazardReportsMap from '@/components/HazardReportsMap'
 
 type ReportRow = {
@@ -24,7 +24,7 @@ export default function HazardDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id: hazardId } = use(params)
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useSupabaseBrowser()
 
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -38,6 +38,7 @@ export default function HazardDetailPage({
 
   // Tjek admin-status
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       try {
@@ -68,7 +69,7 @@ export default function HazardDetailPage({
 
   // Hent admin-lister
   useEffect(() => {
-    if (!isAdmin) return
+    if (!isAdmin || !supabase) return
     let alive = true
     ;(async () => {
       // 1) Flagged
@@ -129,6 +130,7 @@ export default function HazardDetailPage({
 
   // Status-ændring
   async function setStatus(reportId: string, next: 'visible' | 'hidden') {
+    if (!supabase) return
     try {
       setBusyId(reportId)
       const { error } = await supabase

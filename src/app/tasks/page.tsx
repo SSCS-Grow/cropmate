@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import supabaseBrowser from '@/lib/supabaseBrowser';
+import { useCallback, useEffect, useState } from 'react';
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser';
 
 type TaskRow = {
   id: string;
@@ -39,7 +39,7 @@ function formatDate(iso: string | null) {
 }
 
 export default function TasksPage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useSupabaseBrowser();
   const [tab, setTab] = useState<TabKey>('open');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -47,6 +47,7 @@ export default function TasksPage() {
 
   // Henter opgaver for den aktuelle bruger
   const load = useCallback(async () => {
+    if (!supabase) return;
     setErr(null);
     setLoading(true);
     try {
@@ -109,6 +110,7 @@ export default function TasksPage() {
   // Markér som færdig
   const markDone = useCallback(
     async (id: string) => {
+      if (!supabase) return;
       try {
         // Vælg det felt du reelt bruger til “færdig” (done_at eller completed_at)
         const payload = { done_at: new Date().toISOString() }; // ← ret hvis dit felt er 'completed_at'
@@ -136,6 +138,7 @@ export default function TasksPage() {
   // Fortryd færdig (åbn den igen)
   const uncomplete = useCallback(
     async (id: string) => {
+      if (!supabase) return;
       try {
         // Nulstil begge for robusthed – ret, hvis du kun har ét felt
         const payload = { done_at: null, completed_at: null };
@@ -158,6 +161,7 @@ export default function TasksPage() {
   // Snooze +1 dag (valgfrit – brug hvis du har due_at)
   const snooze = useCallback(
     async (id: string, days = 1) => {
+      if (!supabase) return;
       try {
         const t = rows.find((r) => r.id === id);
         const from = t?.due_at ? new Date(t.due_at) : new Date();

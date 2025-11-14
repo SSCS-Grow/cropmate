@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -34,7 +34,7 @@ type RowChart = {
 }
 
 export default function WeatherHistoryChart() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useSupabaseBrowser()
   const [rows, setRows] = useState<RowChart[]>([])
   const [loading, setLoading] = useState(true)
   const [thresholds, setThresholds] = useState<{ et0: number; rain: number }>({
@@ -43,6 +43,7 @@ export default function WeatherHistoryChart() {
   })
 
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       setLoading(true)

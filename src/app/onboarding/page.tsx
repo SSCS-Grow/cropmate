@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import classNames from 'classnames';
 import useAuthSession from '@/hooks/useAuthSession';
-import supabaseBrowser from '@/lib/supabaseBrowser';
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser';
 
 type CropRow = { id: string; name: string; latin_name: string | null };
 
@@ -52,8 +52,16 @@ const styleOptions = [
 ];
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm opacity-70">Indlæser onboarding…</div>}>
+      <OnboardingContent />
+    </Suspense>
+  );
+}
+
+function OnboardingContent() {
   const { session, loading: authLoading } = useAuthSession();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useSupabaseBrowser();
   const router = useRouter();
   const params = useSearchParams();
   const nextPath = params?.get('next') || '/dashboard';
@@ -79,7 +87,7 @@ export default function OnboardingPage() {
   }, [authLoading, session, router]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !supabase) return;
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -106,6 +114,7 @@ export default function OnboardingPage() {
   }, [session, supabase, router, nextPath]);
 
   useEffect(() => {
+    if (!supabase) return;
     if (!cropSearch.trim()) {
       setCropResults([]);
       setSearchBusy(false);
@@ -144,7 +153,7 @@ export default function OnboardingPage() {
   const disableStep2 = !selectedCrop || creatingFirstCrop;
 
   async function saveProfilePreferences() {
-    if (!session) return;
+    if (!session || !supabase) return;
     setSavingProfile(true);
     setError(null);
     try {
@@ -183,7 +192,7 @@ export default function OnboardingPage() {
   }
 
   async function finishOnboarding() {
-    if (!session || !selectedCrop) return;
+    if (!session || !selectedCrop || !supabase) return;
     setCreatingFirstCrop(true);
     setError(null);
     try {

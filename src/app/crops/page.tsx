@@ -1,8 +1,8 @@
 'use client'
 
 
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 import Link from 'next/link' 
 
 type Crop = {
@@ -13,10 +13,7 @@ type Crop = {
 }
 
 export default function CropsPage() {
-  const supabase = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    return supabaseBrowser();
-  }, []);
+  const supabase = useSupabaseBrowser();
   const [crops, setCrops] = useState<Crop[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
 

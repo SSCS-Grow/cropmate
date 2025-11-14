@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
-import supabaseBrowser from '@/lib/supabaseBrowser'
+import { useEffect, useState } from 'react'
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser'
 
 type ReportRow = {
   id: string
@@ -25,7 +25,7 @@ function toDateInput(d: Date) {
 }
 
 export default function GlobalModerationPage() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useSupabaseBrowser()
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -46,6 +46,7 @@ export default function GlobalModerationPage() {
 
   // 1) Tjek admin
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       try {
@@ -65,7 +66,7 @@ export default function GlobalModerationPage() {
 
   // 2) Hent data (kun admin)
   useEffect(() => {
-    if (!isAdmin) return
+    if (!isAdmin || !supabase) return
     let alive = true
     ;(async () => {
       try {
@@ -136,6 +137,7 @@ export default function GlobalModerationPage() {
   }, [supabase, isAdmin, hazardFilter, from, to, minSeverity])
 
   async function setStatus(reportId: string, next: 'visible' | 'hidden') {
+    if (!supabase) return
     try {
       setBusyId(reportId)
       const { error } = await supabase.from('hazard_reports').update({ status: next }).eq('id', reportId)

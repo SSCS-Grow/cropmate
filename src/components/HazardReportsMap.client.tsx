@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import supabaseBrowser from '@/lib/supabaseBrowser';
+import useSupabaseBrowser from '@/hooks/useSupabaseBrowser';
 import type { Map as LeafletMap } from 'leaflet';
 
 import 'leaflet/dist/leaflet.css';
@@ -333,9 +333,10 @@ function OwnerOnlyHideButton({
   onHide?: () => void;
 }) {
   const [isOwner, setIsOwner] = useState(false);
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useSupabaseBrowser();
 
   useEffect(() => {
+    if (!supabase) return;
     (async () => {
       const { data: session } = await supabase.auth.getSession();
       const uid = session.session?.user.id;
@@ -364,7 +365,7 @@ export default function HazardReportsMapClient({
 }: {
   hazardId: string;
 }) {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useSupabaseBrowser();
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [initialZoom, setInitialZoom] = useState<number>(7);
@@ -554,6 +555,7 @@ export default function HazardReportsMapClient({
 
   // Datahentning
   useEffect(() => {
+    if (!supabase) return;
     let alive = true;
     (async () => {
       try {
@@ -839,7 +841,15 @@ export default function HazardReportsMapClient({
     };
   }, [followMe]);
 
-  // Drop nål – klik på kortet
+  if (!supabase) {
+    return (
+      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-4 text-sm opacity-70">
+        Indlæser kortdata…
+      </div>
+    );
+  }
+
+  // Drop nål - klik på kortet
   function onPickMap(lat: number, lng: number) {
     if (!dropMode) return;
     setTempPin({ lat, lng });
@@ -848,6 +858,7 @@ export default function HazardReportsMapClient({
 
   // ==== MODERATION HANDLERS ====
   async function flagReport(reportId: string) {
+    if (!supabase) return;
     const reason = prompt('Skriv kort hvorfor du flagger (valgfrit):') || null;
     const { data: session } = await supabase.auth.getSession();
     const uid = session.session?.user.id;
@@ -874,6 +885,7 @@ export default function HazardReportsMapClient({
   }
 
   async function hideOwnReport(reportId: string) {
+    if (!supabase) return;
     if (!confirm('Skjul rapporten for offentlig visning?')) return;
     const { data: session } = await supabase.auth.getSession();
     const uid = session.session?.user.id;
@@ -899,6 +911,7 @@ export default function HazardReportsMapClient({
 
   // Gem dropped (med valgfri foto-upload)
   async function saveDroppedReport() {
+    if (!supabase) return;
     if (!tempPin) return;
     const { data: session } = await supabase.auth.getSession();
     const uid = session.session?.user.id;
