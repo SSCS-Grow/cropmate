@@ -22,7 +22,7 @@ export async function GET() {
     try {
       await sendPush({ title: 'CropMate test', body: s.endpoint.slice(0, 32) + '…' }, s);
       sent++;
-    } catch (e) {
+    } catch {
       // Ignorer fejl for enkelt-subscriptions
     }
   }

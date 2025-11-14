@@ -1,8 +1,9 @@
+import Image from "next/image";
 import { supabaseServer } from "@/lib/supabase/server";
 import PestForm from "@/components/library/PestForm";
 import ImageUploader from "@/components/library/ImageUploader";
 
-export default async function EditPest({ params }: { params: { id: string } }) {
+export default async function EditPest({ params: _params }: { params: { id: string } }) {
   const supabase = await supabaseServer;
   const { data } = await (supabase as any)
   .from('pests')
@@ -22,7 +23,15 @@ export default async function EditPest({ params }: { params: { id: string } }) {
         <ImageUploader pestId={data.id} onSaved={() => { /* router.refresh client-side */ }} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
           {data.pest_images?.map((img: any) => (
-            <img key={img.id} src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pests/${img.path}`} alt={img.alt||data.name} className="rounded-xl"/>
+            <Image
+              key={img.id}
+              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/pests/${img.path}`}
+              alt={img.alt || data.name}
+              width={320}
+              height={220}
+              className="rounded-xl object-cover w-full h-32"
+              unoptimized
+            />
           ))}
         </div>
       </div>

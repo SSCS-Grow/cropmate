@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
 
@@ -368,7 +369,14 @@ function RowBody({ r }: { r: ReportRow }) {
       {r.message && <div className="text-sm opacity-90"><span className="opacity-60">Note:</span> {r.message}</div>}
       {r.photo_url && (
         <div>
-          <img src={r.photo_url} alt="foto" style={{ maxWidth: 360, maxHeight: 220, borderRadius: 8 }} />
+          <Image
+            src={r.photo_url}
+            alt="foto"
+            width={360}
+            height={220}
+            style={{ maxWidth: 360, maxHeight: 220, borderRadius: 8, objectFit: 'cover', width: '100%', height: 'auto' }}
+            unoptimized
+          />
         </div>
       )}
       <div className="text-xs opacity-60 break-all">Rapport-ID: {r.id}</div>

@@ -5,10 +5,14 @@ import { useEffect, useMemo, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
 
 export default function AdminNavLink() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const supabase = useMemo(() => {
+    return typeof window === 'undefined' ? null : supabaseBrowser()
+  }, [])
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
+    if (!supabase) return
+
     let alive = true
     const load = async () => {
       const { data: session } = await supabase.auth.getSession()
@@ -19,7 +23,10 @@ export default function AdminNavLink() {
     }
     load()
     const { data: sub } = supabase.auth.onAuthStateChange(() => load())
-    return () => { alive = false; sub.subscription.unsubscribe() }
+    return () => {
+      alive = false
+      sub.subscription?.unsubscribe()
+    }
   }, [supabase])
 
   if (!isAdmin) return null

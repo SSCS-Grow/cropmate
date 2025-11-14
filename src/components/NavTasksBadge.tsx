@@ -8,10 +8,14 @@ import supabaseBrowser from '@/lib/supabaseBrowser';
  * Skjuler sig selv hvis ikke logget ind eller count <= 0.
  */
 export default function NavTasksBadge() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useMemo(() => {
+    return typeof window === 'undefined' ? null : supabaseBrowser();
+  }, []);
   const [count, setCount] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!supabase) return;
+
     try {
       const { data: session } = await supabase.auth.getSession();
       const uid = session.session?.user.id;
@@ -24,7 +28,7 @@ export default function NavTasksBadge() {
         .from('plant_tasks' as any)
         .select('*', { count: 'exact', head: true })
         .eq('user_id', uid)
-        // “åben” = ikke afsluttet i enten done_at eller completed_at
+        // "åben" = ikke afsluttet i enten done_at eller completed_at
         .or('done_at.is.null,completed_at.is.null');
 
       if (error) {
@@ -39,6 +43,8 @@ export default function NavTasksBadge() {
 
   // Initial load + refresh ved tab-visibilitet (asynkront kick)
   useEffect(() => {
+    if (!supabase) return;
+
     let cancelled = false;
     const run = async () => {
       if (!cancelled) await refresh();
@@ -58,10 +64,12 @@ export default function NavTasksBadge() {
       clearTimeout(t);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [refresh]);
+  }, [supabase, refresh]);
 
   // Opdater ved login/logout
   useEffect(() => {
+    if (!supabase) return;
+
     const { data: sub } = supabase.auth.onAuthStateChange(() => {
       setTimeout(() => {
         void refresh();

@@ -56,7 +56,6 @@ export async function GET() {
     admin.from('hazard_reports').select('hazard_id, latitude, longitude, created_at').gte('created_at', since),
   ])
 
-  const H = new Map((hazards || [] as Hazard[]).map(h => [h.id, h]))
   const hostByHazard = new Map<string, string[]>()
   ;(hosts || [] as Host[]).forEach(x => {
     const arr = hostByHazard.get(x.hazard_id) || []

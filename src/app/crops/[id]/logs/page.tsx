@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import supabaseBrowser from '@/lib/supabaseBrowser';
@@ -142,7 +143,7 @@ export default function CropLogsPage() {
       setNote('');
       setFile(null);
       setLogs((prev) => [ins as LogRow, ...prev]);
-    } catch (e) {
+    } catch {
       alert(
         'Kunne ikke gemme logbogen. Tjek at du er logget ind og at Storage bucket "logs" findes.',
       );
@@ -224,11 +225,14 @@ export default function CropLogsPage() {
             <li key={log.id} className="p-3 rounded-lg border border-slate-200">
               <div className="flex items-start gap-3">
                 {log.photo_url && (
-                  <img
+                  <Image
                     src={log.photo_url}
                     alt="Logfoto"
+                    width={112}
+                    height={112}
                     className="w-28 h-28 object-cover rounded"
                     loading="lazy"
+                    unoptimized
                   />
                 )}
                 <div className="flex-1">

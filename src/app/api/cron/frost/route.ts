@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 // Update the import path to the correct location of your Supabase client utility
 import { createAdminClient } from '@/utils/supabase/admin';
-import { sendPushToEndpoint } from '@/lib/push';
 import { OPEN_METEO, safeFetchJSON } from '@/lib/weather';
+import { notifyUserPush } from '@/lib/push/notifyUser';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +14,6 @@ type PrefRow = {
   locale: 'da' | 'en';
 };
 type Garden = { user_id: string; lat: number; lon: number; name?: string };
-type SubRow = { endpoint: string; p256dh: string; auth: string };
 
 async function fetchMinTemp(lat: number, lon: number): Promise<number> {
   const url = `${OPEN_METEO}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m&forecast_days=2`;
@@ -68,58 +67,19 @@ export async function GET() {
         continue;
       }
 
-      const dedup_key = `frost:${todayKey}`;
-      const { error: dupErr } = await supabase.from('notification_log').insert({
-        user_id: p.user_id,
-        kind: 'frost',
-        dedup_key,
-      });
-      if (dupErr) {
-        skipped.push(`${p.user_id}:dedup`);
-        continue;
-      }
-
-      const { data: subs, error: subsErr } = await supabase
-        .from('push_subscriptions')
-        .select('endpoint, p256dh, auth')
-        .eq('user_id', p.user_id);
-      if (subsErr) {
-        skipped.push(`${p.user_id}:subsErr`);
-        continue;
-      }
-      const subRows = (subs ?? []) as SubRow[];
-      if (!subRows.length) {
-        skipped.push(`${p.user_id}:no-subs`);
-        continue;
-      }
-
       const title = p.locale === 'en' ? 'Frost alert' : 'Frostvarsel';
       const body =
         p.locale === 'en'
           ? `Minimum temperature next 48h: ${minTemp}°C. Protect sensitive plants.`
           : `Min. temperatur næste 48t: ${minTemp}°C. Beskyt sarte planter.`;
 
-      for (const s of subRows) {
-        try {
-          await sendPushToEndpoint(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            { title, body, url: '/dashboard?alert=frost', tag: 'frost' },
-          );
-          sent++; // kom hertil = succes (2xx)
-        } catch (err: any) {
-          const code = err?.statusCode ?? err?.status ?? 0;
-          // 404/410 = endpoint findes ikke længere -> slet subscription
-          if (code === 404 || code === 410) {
-            await supabase
-              .from('push_subscriptions')
-              .delete()
-              .eq('endpoint', s.endpoint);
-          } else {
-            // andre fejl: log og fortsæt
-            console.info('push error:', code, err?.body || err?.message || err);
-          }
-        }
-      }
+      const notified = await notifyUserPush(
+        p.user_id,
+        { title, body, url: '/dashboard?alert=frost', tag: 'frost' },
+        { dedupKey: `frost:${todayKey}`, kind: 'frost' },
+      );
+      if (notified.ok) sent += notified.sent ?? 0;
+      else skipped.push(`${p.user_id}:${notified.reason ?? 'push-failed'}`);
     }
     return NextResponse.json({ ok: true, sent, skipped, debug });
   } catch (e) {

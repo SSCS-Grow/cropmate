@@ -18,7 +18,7 @@ export default function TemplateBuilder() {
 
   async function save() {
     const body = { name, description: desc, items } as Partial<ScoutTemplate>;
-    const { data, error } = await (supabase as any)
+    const { error } = await (supabase as any)
       .from('scout_templates')
       .insert(body)
       .select('*')

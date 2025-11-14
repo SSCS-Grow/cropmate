@@ -8,6 +8,7 @@ type DiagnoseInput = {
   symptoms: string;
   imageUrls?: string[];
   topK?: number;
+  growingStyle?: string;
 };
 
 async function sha256Hex(input: string) {
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
       topK: Math.min(Math.max(body.topK ?? 5, 1), 10),
       ragModel: process.env.AI_EMBED_MODEL || "text-embedding-3-small",
       llmModel: process.env.AI_DIAGNOSE_MODEL || "gpt-4o-mini",
+      growingStyle: body.growingStyle || null,
       // evt. version: bump denne hvis du ændrer prompt-formatet:
       v: 1,
     };
@@ -87,7 +89,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 2) RAG: embed + match
-    const queryText = `Plante: ${body.plant || "ukendt"}\nSymptomer: ${body.symptoms}`;
+    const queryText = `Plante: ${body.plant || "ukendt"}\nDyrkningsstil: ${
+      body.growingStyle || "ukendt"
+    }\nSymptomer: ${body.symptoms}`;
     const queryEmb = await embed(queryText);
 
     const matchCount = keyPayload.topK;

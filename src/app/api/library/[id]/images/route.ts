@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, context: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, context: Ctx) {
-  const { id } = await context.params; // id bruges kun til konsistens
+  const { id: _id } = await context.params; // kun for signatur
   const supabase = await supabaseServer();
 
   const { path, imageId } = await req.json();

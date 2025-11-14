@@ -22,7 +22,7 @@ export default function ImageUploader({ pestId, onSaved }: { pestId: string; onS
       if (!upRes.ok) throw new Error("Upload failed");
 
       // gem reference i DB
-      const dbRes = await fetch("/api/library/" + pestId, {
+      await fetch("/api/library/" + pestId, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}), // no-op, but ensures auth context

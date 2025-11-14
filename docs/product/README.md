@@ -1,7 +1,9 @@
-# CropMate – Produktretning & MVP-spec (EU/Skandinavien)
+# CropMate - Produktretning & MVP-spec (EU/Skandinavien)
 
 > Denne fil er den autoritative kilde for retning, scope og Definition of Done.
-> Opdateres løbende – linkes i PR-skabelon og issue-templates.
+> Opdateres løbende - linkes i PR-skabelon og issue-templates.
+>
+> Se også `docs/product/vision-plan.md` for status og hårdningsplan.
 
 1) Vision & mål
 

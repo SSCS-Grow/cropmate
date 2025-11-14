@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import supabaseBrowser from '@/lib/supabaseBrowser';
 import type { Map as LeafletMap } from 'leaflet';
@@ -325,11 +326,9 @@ function MapClickCapture({
 
 /** Vises kun til ejeren af en rapport i popup (skjul/soft-delete) */
 function OwnerOnlyHideButton({
-  reportId,
   ownerUserId,
   onHide,
 }: {
-  reportId: string;
   ownerUserId: string;
   onHide?: () => void;
 }) {
@@ -1308,15 +1307,17 @@ export default function HazardReportsMapClient({
                             </div>
 
                             {p.photo_url && (
-                              <img
+                              <Image
                                 src={p.photo_url}
                                 alt="foto"
+                                width={240}
+                                height={160}
+                                className="block rounded"
                                 style={{
                                   maxWidth: 240,
                                   maxHeight: 160,
-                                  display: 'block',
-                                  borderRadius: 6,
                                 }}
+                                unoptimized
                               />
                             )}
 
@@ -1331,7 +1332,6 @@ export default function HazardReportsMapClient({
                               </button>
 
                               <OwnerOnlyHideButton
-                                reportId={p.id}
                                 ownerUserId={p.user_id}
                                 onHide={() => hideOwnReport(p.id)}
                               />
@@ -1490,14 +1490,13 @@ export default function HazardReportsMapClient({
 
                 {tempPreview && (
                   <div className="mt-1">
-                    <img
+                    <Image
                       src={tempPreview}
                       alt="preview"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: 160,
-                        borderRadius: 8,
-                      }}
+                      width={320}
+                      height={160}
+                      className="max-w-full h-auto rounded"
+                      unoptimized
                       onLoad={() => {
                         if (tempPreview) URL.revokeObjectURL(tempPreview);
                       }}

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import React, { use, useEffect, useMemo, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
 import HazardReportsMap from '@/components/HazardReportsMap'
@@ -166,6 +167,14 @@ export default function HazardDetailPage({
     }
   }
 
+  if (loading) {
+    return <div className="p-4 opacity-60">Indlæser hazard…</div>
+  }
+
+  if (err) {
+    return <div className="p-4 text-red-600">{err}</div>
+  }
+
   return (
     <div className="max-w-5xl mx-auto p-4 grid gap-6">
       <header className="flex items-center justify-between">
@@ -313,10 +322,13 @@ function RowBody({ r }: { r: ReportRow }) {
       )}
       {r.photo_url && (
         <div>
-          <img
+          <Image
             src={r.photo_url}
             alt="foto"
-            style={{ maxWidth: 360, maxHeight: 220, borderRadius: 8 }}
+            width={360}
+            height={220}
+            style={{ maxWidth: 360, maxHeight: 220, borderRadius: 8, objectFit: 'cover', width: '100%', height: 'auto' }}
+            unoptimized
           />
         </div>
       )}

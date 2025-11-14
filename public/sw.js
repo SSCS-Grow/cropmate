@@ -81,3 +81,45 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
     self.addEventListener('fetch', () => {}); // lad alt passere
   }
 })();
+
+self.addEventListener('push', (event) => {
+  const payload = (() => {
+    try {
+      return event.data ? event.data.json() : {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const title = payload.title || 'CropMate';
+  const options = {
+    body: payload.body,
+    data: payload.url ? { url: payload.url } : payload.data || {},
+    tag: payload.tag || 'cropmate',
+    renotify: false,
+    badge: '/favicon.ico',
+    icon: '/favicon.ico',
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.postMessage({ type: 'navigate', url: targetUrl });
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+      return null;
+    }),
+  );
+});

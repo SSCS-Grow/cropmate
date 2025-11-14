@@ -8,10 +8,12 @@ import { ThemeSupa } from '@supabase/auth-ui-shared'
 import type { Session } from '@supabase/supabase-js' // kun Session bruges
 
 export default function Home() {
-  const supabase = supabaseBrowser()
+  const supabase = typeof window === 'undefined' ? null : supabaseBrowser()
   const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {
+    if (!supabase) return
+
     // Hent aktuel session
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
 
@@ -23,9 +25,13 @@ export default function Home() {
     )
 
     return () => {
-      sub.subscription.unsubscribe()
+      sub.subscription?.unsubscribe()
     }
   }, [supabase])
+
+  if (!supabase) {
+    return null
+  }
 
   if (!session) {
     return (

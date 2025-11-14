@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 export default function AdminRow({ o }: { o: any }) {
   async function setStatus(status: "active" | "hidden" | "flagged") {
     const res = await fetch(`/api/observations/${o.id}`, {
@@ -30,7 +32,20 @@ export default function AdminRow({ o }: { o: any }) {
       <div className="text-xs truncate">{o.user_id ?? "—"}</div>
       <div className="text-xs">{o.status}</div>
       <div className="text-xs">{new Date(o.created_at).toLocaleString()}</div>
-      <div>{o.photo_url ? <img src={o.photo_url} className="w-16 h-12 object-cover rounded" /> : "—"}</div>
+      <div>
+        {o.photo_url ? (
+          <Image
+            src={o.photo_url}
+            alt={o.title || "observation"}
+            width={64}
+            height={48}
+            className="w-16 h-12 object-cover rounded"
+            unoptimized
+          />
+        ) : (
+          "-"
+        )}
+      </div>
       <div className="flex gap-2 justify-end">
         <button onClick={() => setStatus("active")} className="px-2 py-1 border rounded">Active</button>
         <button onClick={() => setStatus("hidden")} className="px-2 py-1 border rounded">Skjul</button>

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
 
 // 💡 Minimal type til netop den SELECT du laver på siden
@@ -53,7 +54,14 @@ export default async function LibraryDetailPage({ params }: { params: { slug: st
           {pest.pest_images!.map((img) => (
             <figure key={img.id} className="rounded-xl overflow-hidden border bg-white">
               {/* antag at url allerede er public; ellers brug getPublicUrl logic */}
-              <img src={img.url} alt={img.caption ?? pest.name} className="w-full h-40 object-cover" />
+              <Image
+                src={img.url}
+                alt={img.caption ?? pest.name}
+                width={600}
+                height={300}
+                className="w-full h-40 object-cover"
+                unoptimized
+              />
               {img.caption && <figcaption className="text-xs p-2 text-gray-600">{img.caption}</figcaption>}
             </figure>
           ))}

@@ -832,6 +832,9 @@ export type Database = {
           language: string | null
           latitude: number | null
           longitude: number | null
+          region_code: string | null
+          growing_style: string | null
+          onboarded_at: string | null
           subscription_plan: string | null
           updated_at: string | null
           username: string | null
@@ -844,6 +847,9 @@ export type Database = {
           language?: string | null
           latitude?: number | null
           longitude?: number | null
+          region_code?: string | null
+          growing_style?: string | null
+          onboarded_at?: string | null
           subscription_plan?: string | null
           updated_at?: string | null
           username?: string | null
@@ -856,6 +862,9 @@ export type Database = {
           language?: string | null
           latitude?: number | null
           longitude?: number | null
+          region_code?: string | null
+          growing_style?: string | null
+          onboarded_at?: string | null
           subscription_plan?: string | null
           updated_at?: string | null
           username?: string | null

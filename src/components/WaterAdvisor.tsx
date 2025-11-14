@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import supabaseBrowser from '@/lib/supabaseBrowser'
 
 type ProfileRow = { latitude: number | null; longitude: number | null }
-type SettingsRow = { et0_threshold_mm: number | null; rain_skip_mm: number | null; hot_day_c: number | null }
 
 type Advice = {
   shouldWater: boolean
