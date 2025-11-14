@@ -13,11 +13,15 @@ type Crop = {
 }
 
 export default function CropsPage() {
-  const supabase = useMemo(() => supabaseBrowser(), [])  
+  const supabase = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return supabaseBrowser();
+  }, []);
   const [crops, setCrops] = useState<Crop[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!supabase) return;
     const run = async () => {
       const { data, error } = await supabase
         .from('crops')
@@ -29,6 +33,7 @@ export default function CropsPage() {
   }, [supabase])
 
   const addToGarden = async (cropId: string) => {
+    if (!supabase) return;
     setAddingId(cropId)
     const { data: session } = await supabase.auth.getSession()
     const userId = session.session?.user.id
