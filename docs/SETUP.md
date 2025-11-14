@@ -75,3 +75,15 @@ Policies ligger i Supabase dashboardet; dokumentér ændringer i `supabase/polic
 - Brug “Terminal: Create New Integrated Terminal” for at holde supabase og `npm run dev` kørende side om side.
 - `Ctrl+Shift+P → Tasks: Run Task → dev` kan sættes op til at starte både Supabase og Next.
 - Sørg for at ESLint/Prettier extensions er sat til “Format on Save”, så vi holder samme stil.
+
+## 9. Observability (Sentry)
+
+Sentry er allerede wired til Next.js (client/server/edge). Sæt disse variabler i .env.local og i Vercel:
+
+- SENTRY_DSN – privat DSN til server/edge
+- NEXT_PUBLIC_SENTRY_DSN – samme DSN til browseren
+- SENTRY_ENVIRONMENT – fx local, preview, production`n- SENTRY_AUTH_TOKEN – bruges ved build til at uploade sourcemaps
+- SENTRY_ORG og SENTRY_PROJECT – matcher projekt-navn i sentry.io
+
+På Vercel skal SENTRY_AUTH_TOKEN, SENTRY_ORG og SENTRY_PROJECT være markeret som **Encrypted** env vars, ellers uploader buildet ikke sourcemaps og du mister stacktraces. Lokalt kan du lade dem stå tomme, hvis du ikke vil uploade sourcemaps.
+

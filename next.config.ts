@@ -1,8 +1,9 @@
 // next.config.ts
 import type { NextConfig } from 'next'
+import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
-  typedRoutes: false, // ✅ korrekt placering
+  typedRoutes: false,
   eslint: { ignoreDuringBuilds: true, dirs: [] },
   turbopack: { root: process.cwd() },
   outputFileTracingRoot: process.cwd(),
@@ -25,4 +26,15 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 }
 
-export default nextConfig
+export default withSentryConfig(
+  nextConfig,
+  {
+    silent: true,
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    widenClientFileUpload: true,
+  },
+  {
+    hideSourcemaps: true,
+  },
+)
