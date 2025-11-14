@@ -17,7 +17,9 @@ type WatchRow = { hazard_id: string }
 type ReportRow = { hazard_id: string }
 
 export default function HazardListPage() {
-  const supabase = useMemo(() => supabaseBrowser(), [])
+  const [supabase] = useState(() =>
+    typeof window === 'undefined' ? null : supabaseBrowser(),
+  )
 
   // Data
   const [hazards, setHazards] = useState<HazardRow[]>([])
@@ -35,6 +37,7 @@ export default function HazardListPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!supabase) return
     let alive = true
     ;(async () => {
       setLoading(true)
@@ -119,8 +122,8 @@ export default function HazardListPage() {
   })
 
   const toggleWatch = async (hazardId: string, next: boolean) => {
-    if (!loggedIn) {
-      alert('Log ind for at bruge “Overvåg”.')
+    if (!supabase || !loggedIn) {
+      alert('Log ind for at bruge "Overvåg".')
       return
     }
     setSavingId(hazardId)
