@@ -29,10 +29,13 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(
   nextConfig,
   {
-    silent: true,
     org: process.env.SENTRY_ORG,
     project: process.env.SENTRY_PROJECT,
+    silent: !process.env.CI,
     widenClientFileUpload: true,
+    disableLogger: true,
+    tunnelRoute: '/monitoring',
+    automaticVercelMonitors: true,
   },
   {
     hideSourcemaps: true,
