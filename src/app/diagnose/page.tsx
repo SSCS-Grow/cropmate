@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import { Loader2, Save, Leaf, Sparkles, AlertTriangle, Camera } from "lucide-react";
@@ -31,7 +31,9 @@ const styleOptions = [
 ];
 
 export default function DiagnosePage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const [supabase] = useState(() =>
+    typeof window === "undefined" ? null : supabaseBrowser(),
+  );
   const { session, loading: authLoading } = useAuthSession();
 
   const [plant, setPlant] = useState("");
@@ -61,7 +63,7 @@ export default function DiagnosePage() {
   }
 
   async function uploadFile() {
-    if (!file) return "";
+    if (!supabase || !file) return "";
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage
@@ -83,6 +85,8 @@ export default function DiagnosePage() {
       setError("Skriv symptomer først");
       return;
     }
+    if (!supabase) return;
+
     setLoading(true);
     setResult(null);
     setMatches([]);
@@ -114,7 +118,7 @@ export default function DiagnosePage() {
   }
 
   async function saveObservation() {
-    if (!result || !session?.user) {
+    if (!supabase || !result || !session?.user) {
       setSaveMsg("Log ind for at gemme observationer");
       return;
     }
